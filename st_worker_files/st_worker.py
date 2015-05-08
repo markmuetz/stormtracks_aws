@@ -2,7 +2,7 @@
 """Will be run from st_worker ubuntu EC2 instance"""
 # So I can access modules defined in parent dir.
 import sys
-sys.path.append('..')
+sys.path.append('/home/ubuntu/Projects/stormtracks_aws')
 import os
 import logging
 
@@ -16,7 +16,7 @@ from st_utils import setup_logging
 from aws_helpers import upload_large_file
 
 # So as paths to e.g. aws_credentials in upload_large_file work.
-os.chdir('..')
+os.chdir('/home/ubuntu/Projects/stormtracks_aws')
 
 # N.B. uses absolute path.
 logging_filename = os.path.join(settings.LOGGING_DIR, 'st_worker_status.log')

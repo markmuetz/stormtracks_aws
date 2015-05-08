@@ -20,7 +20,7 @@ os.chdir('/home/ubuntu/Projects/stormtracks_aws')
 
 # N.B. uses absolute path.
 logging_filename = os.path.join(settings.LOGGING_DIR, 'st_worker_status.log')
-log = setup_logging(name='st_worker_status', filename=logging_filename)
+log = setup_logging(name='st_worker_status', filename=logging_filename, mode='w')
 
 
 def download_year_data(year):

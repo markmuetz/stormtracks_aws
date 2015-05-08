@@ -96,7 +96,7 @@ def setup_st_worker_image(conn, args):
         instance = find_instance(conn, args.instance_id)
 
     log.info('Creating image')
-    image = create_image(conn, instance.instance_id, args.image_nametag, args)
+    image = create_image(conn, instance.id, args.image_nametag, args)
 
     terminate_instances(conn, args)
 
@@ -114,14 +114,14 @@ def run_analysis(conn, args):
         raise AwsInteractionError('Should be exactly one image')
     image = images[0]
 
-    args.image_id = image.instance_id
+    args.image_id = image.id
     instances = create_instances(conn, args)
     if len(instances) != 1:
         raise AwsInteractionError('Should only have created one instance for run_analysis')
 
     instance = instances[0]
     host = instance.ip_address
-    log.info('Running on host:{0}, instance_id: {1}'.format(host, instance.instance_id))
+    log.info('Running on host:{0}, instance_id: {1}'.format(host, instance.id))
 
     log.info('Sleeping for 60s to allow instance to get ready')
     sleep(60)
@@ -177,7 +177,7 @@ def parse_args():
     parser.add_argument('-n', '--num-ensemble-members', type=int, default=56)
     parser.add_argument('-r', '--region', default='eu-central-1')
     parser.add_argument('-a', '--allow-multiple-instances', default=False, action='store_true')
-    parser.add_argument('--instance-type', default='t2.small')
+    parser.add_argument('--instance-type', default='t2.medium')
     args = parser.parse_args()
 
     return parser, args

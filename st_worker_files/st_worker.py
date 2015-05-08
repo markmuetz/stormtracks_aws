@@ -32,7 +32,7 @@ def logging_callback(msg):
 
 
 def analyse_year(year):
-    sa = analysis.StormtracksAnalysis(year, is_setup_logging=True)
+    sa = analysis.StormtracksAnalysis(year)
     sa.logging_callback = logging_callback
     config = sa.analysis_config_options[5]
     sa.run_full_tracking_matching_analysis(config, 56)

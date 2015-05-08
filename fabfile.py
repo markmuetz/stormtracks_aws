@@ -93,6 +93,7 @@ def install_stormtracks():
             run('pip install -r stormtracks/requirements_a.txt')
             run('pip install -r stormtracks/requirements_b.txt --allow-external basemap --allow-unverified basemap')
             run('pip install -e stormtracks')
+            run('pip install boto filechunkio')
         run('git clone https://github.com/markmuetz/stormtracks_aws')
     run('mkdir Projects/stormtracks_aws/aws_credentials/')
     put('aws_credentials/st_worker1.pem', 'Projects/stormtracks_aws/aws_credentials/st_worker1.pem',
@@ -100,6 +101,12 @@ def install_stormtracks():
     put('aws_credentials/credentials.csv', 'Projects/stormtracks_aws/aws_credentials/credentials.csv',
         mode=0400)
 
+
+@task
+def install_extras():
+    with cd('Projects'):
+        with prefix('source stormtracks/st_env/bin/activate'):
+            run('pip install boto filechunkio')
 
 @task
 def install_supervisor(update=False):

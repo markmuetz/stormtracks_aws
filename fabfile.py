@@ -5,7 +5,7 @@ from subprocess import call
 from time import sleep
 
 from boto.ec2 import connect_to_region
-from fabric.api import env, run, cd, settings, sudo, put, execute, task
+from fabric.api import env, run, cd, settings, sudo, put, execute, task, prefix
 from fabric.api import parallel
 from fabric.contrib.files import upload_template
 from fabric.context_managers import quiet

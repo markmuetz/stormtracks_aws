@@ -60,6 +60,7 @@ def full_setup():
     basic_setup()
     install_stormtracks()
     install_supervisor()
+    notify()
 
 
 @task
@@ -104,6 +105,7 @@ def install_extras():
     with cd('Projects'):
         with prefix('source stormtracks/st_env/bin/activate'):
             run('pip install boto filechunkio')
+
 
 @task
 def install_supervisor(update=False):
@@ -157,3 +159,10 @@ def monitor_directory_space(path='stormtracks_data/data/', poll_time=10):
 def mount_vol():
     run('mkdir PERSISTENT_DATA')
     sudo('mount /dev/xvdf PERSISTENT_DATA')
+
+
+def beep():
+    call(['paplay', '/usr/share/sounds/LinuxMint/stereo/dialog-information.ogg'])
+
+def notify():
+    call(['paplay', '/usr/share/sounds/LinuxMint/stereo/desktop-logout.ogg'])

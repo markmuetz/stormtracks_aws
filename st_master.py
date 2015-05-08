@@ -4,7 +4,6 @@ from __future__ import print_function
 import logging
 from time import sleep
 from argparse import ArgumentParser
-import datetime as dt
 
 from fabric.api import execute
 from fabric.network import disconnect_all
@@ -12,15 +11,11 @@ from fabfile import (full_setup, update_stormtracks, update_stormtracks_aws,
     st_worker_run, st_worker_status)
 
 from aws_helpers import (create_ec2_connection, create_image, create_instances, terminate_instances,
-    list_instances, find_instance, get_instances)
+    list_instances, find_instance, get_instances, AwsInteractionError)
 from st_utils import setup_logging
 import amis
 
 log = setup_logging(name='st_master', filename='logs/st_master.log')
-
-class AwsInteractionError(Exception):
-    pass
-
 
 def main(args):
     log.info('Action: {0}'.format(args.action))
@@ -29,7 +24,8 @@ def main(args):
     if args.action == 'create_instances':
         create_instances(conn, args)
     if args.action == 'create_image':
-        create_image(conn, args.instance_id, args)
+        instance = find_instance(conn, args.instance_id)
+        image = create_image(conn, instance.id, args.image_nametag, args)
     elif args.action == 'terminate_instances':
         terminate_instances(conn, args)
     elif args.action == 'list_instances':

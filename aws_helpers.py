@@ -3,6 +3,7 @@ from __future__ import print_function
 import csv
 import logging
 from time import sleep
+import datetime as dt
 
 import boto
 import boto.ec2
@@ -10,6 +11,10 @@ import boto.sns
 from filechunkio import FileChunkIO
 
 log = logging.getLogger('st_master.aws')
+
+
+class AwsInteractionError(Exception):
+    pass
 
 
 def _get_credentials():
@@ -171,7 +176,7 @@ def create_image(conn, instance_id, image_nametag, args):
     name = dt.datetime.strftime(dt.datetime.now(), 'st_worker_ubuntu-14-04_%Y-%m-%d-%H-%M')
     image_id = instance.create_image(name, description='stormtracks worker, stormtracks installed')
     image = conn.get_all_images(filters={'image-id': image_id})[0]
-    log.info('Waiting for instance to become available')
+    log.info('Waiting for image to become available')
     while image.update() != 'available':
         log.info(image.state)
         sleep(10)

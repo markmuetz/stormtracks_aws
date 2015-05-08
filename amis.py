@@ -4,4 +4,4 @@ UBUNTU_1404_AMD64_AMI = 'ami-accff2b1'
 ST_WORKER_IMAGE_1 = 'ami-4acff057'
 # Convenient for using as default.
 ST_WORKER_IMAGE_CURRENT = ST_WORKER_IMAGE_1
-ST_WORKER_IMAGE_NAMETAG = 'st_worker_image_1'
+ST_WORKER_IMAGE_NAMETAG = 'st_worker_image_2'

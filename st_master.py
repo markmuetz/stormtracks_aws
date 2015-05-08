@@ -158,7 +158,7 @@ def st_worker_status_monitor(args, host):
     status = execute(st_worker_status, host=host)
     log.info(status[host])
     minutes = 0
-    while status[host][:8] != 'analysed':
+    while status[host][:14] != 'analysed years':
         log.info('{0}: Waited for {1}m'.format(status[host], minutes))
         minutes += 1
         sleep(60)

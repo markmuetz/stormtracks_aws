@@ -128,7 +128,7 @@ def terminate_instances(conn, args):
     key = "tag:{0}".format(args.tag)
     instances = get_instances(conn, filters={key: args.tag_value})
     for instance in instances:
-        log.info('Terminating instance: {0}'.format(instance.instance_id))
+        log.info('Terminating instance: {0}'.format(instance.id))
         instance.terminate()
 
     all_instances_terminated = False

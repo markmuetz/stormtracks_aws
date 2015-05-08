@@ -1,0 +1,9 @@
+.*.swp
+*.pyc
+*.dat
+*.o
+*.so
+*/tags
+aws_credentials/
+st_aws_env/
+logs/

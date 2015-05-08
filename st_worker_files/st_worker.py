@@ -10,7 +10,7 @@ from stormtracks.load_settings import settings
 from stormtracks import download, analysis
 from stormtracks.results import StormtracksResultsManager
 
-from st_settings import YEARS
+from st_worker_settings import YEARS
 
 from st_utils import setup_logging
 from aws_helpers import upload_large_file

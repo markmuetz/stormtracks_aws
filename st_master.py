@@ -7,16 +7,15 @@ from argparse import ArgumentParser
 import datetime as dt
 
 from fabric.network import disconnect_all
-from fabfile import full_setup, update_stormtracks, st_worker_run, st_worker_status
+from fabfile import (full_setup, update_stormtracks, update_stormtracks_aws, 
+    st_worker_run, st_worker_status)
 
 from aws_helpers import (create_ec2_connection, create_image, create_instances, terminate_instances,
     list_instances)
 from st_utils import setup_logging
+import amis
 
 log = setup_logging(name='st_master', filename='logs/st_master.log')
-
-# ami-accff2b1 is Ubuntu Trusty 14.04 AMD64 AMI
-UBUNTU_1404_AMD64_AMI = 'ami-accff2b1'
 
 class AwsInteractionError(Exception):
     pass
@@ -68,19 +67,18 @@ def attach_mount(conn, args):
 
 
 def setup_st_worker_image(conn, args):
-    image_nametag = 'st_worker_image_1'
     if False:
-        images = conn.get_all_images(filters={'tag:name': image_nametag})
+        images = conn.get_all_images(filters={'tag:name': args.image_nametag})
         if len(images) != 0:
             raise AwsInteractionError('Image with nametag {0} already exists! Delete and try'
-                    'again.'.format(image_nametag))
+                    'again.'.format(args.image_nametag))
 
         if args.num_instances != 1:
             raise AwsInteractionError('Should only be one instance for setup_st_worker_image')
 
         log.info('Creating instance')
         # Use Ubuntu AMI:
-        args.image_id = 'ami-4acff057'
+        args.image_id = amis.UBUNTU_1404_AMD64_AMI
         instances = create_instances(conn, args)
         if len(instances) != 1:
             raise AwsInteractionError('Should only have created one instance for setup_st_worker_image')
@@ -97,7 +95,7 @@ def setup_st_worker_image(conn, args):
         instance = find_instance(conn, args.instance_id)
 
     log.info('Creating image')
-    image = create_image(conn, instance.instance_id, image_nametag, args)
+    image = create_image(conn, instance.instance_id, args.image_nametag, args)
 
     terminate_instances(conn, args)
 
@@ -106,12 +104,11 @@ def setup_st_worker_image(conn, args):
 
 def run_analysis(conn, args):
     log.info('Running analysis: {0}-{1}'.format(args.start_year, args.end_year))
-    image_nametag = 'st_worker_image_1'
     if args.num_instances != 1:
         raise AwsInteractionError('Should only be one instance for run_analysis')
 
     log.info('Creating instance from image')
-    images = conn.get_all_images(filters={'tag:name': image_nametag})
+    images = conn.get_all_images(filters={'tag:name': args.image_nametag})
     if len(images) != 1:
         raise AwsInteractionError('Should be exactly one image')
     image = images[0]
@@ -140,6 +137,7 @@ def run_analysis(conn, args):
 def execute_fabric_commands(args, host):
     log.info('Updating stormtracks')
     execute(update_stormtracks, host=host)
+    execute(update_stormtracks_aws, host=host)
 
     log.info('Starting anaysis')
     execute(st_worker_run, start_year=args.start_year, end_year=args.end_year, host=host)
@@ -165,7 +163,8 @@ def parse_args():
     parser = ArgumentParser()
     parser.add_argument('action')
     parser.add_argument('--instance-id')
-    parser.add_argument('--image-id')
+    parser.add_argument('--image-id', default=amis.ST_WORKER_IMAGE_CURRENT)
+    parser.add_argument('--image-nametag', default=amis.ST_WORKER_IMAGE_NAMETAG)
     parser.add_argument('-i', '--num-instances', type=int, default=1)
     parser.add_argument('-t', '--tag', default='group')
     parser.add_argument('-v', '--tag-value', default='st_worker')

@@ -40,8 +40,9 @@ def update_stormtracks_aws():
 
 @task
 def st_worker_run(start_year, end_year):
-    upload_template('st_years.tpl.py', 'st_years.py', 
-            {'start_year': str(start_year), 'end_year': str(end_year + 1)})
+    upload_template('st_worker_files/st_worker_settings.tpl.py', 
+        'Projects/stormtracks_aws/st_worker_files/st_worker_settings.py', 
+        {'start_year': str(start_year), 'end_year': str(int(end_year) + 1)})
 
     put('st_worker_files/dotstormtracks.bz2', 'dotstormtracks.bz2')
     run('tar xvf dotstormtracks.bz2')
@@ -93,6 +94,7 @@ def install_stormtracks():
             run('pip install -r stormtracks/requirements_b.txt --allow-external basemap --allow-unverified basemap')
             run('pip install -e stormtracks')
         run('git clone https://github.com/markmuetz/stormtracks_aws')
+    run('mkdir Projects/stormtracks_aws/aws_credentials/')
     put('aws_credentials/st_worker1.pem', 'Projects/stormtracks_aws/aws_credentials/st_worker1.pem',
         mode=0400)
     put('aws_credentials/credentials.csv', 'Projects/stormtracks_aws/aws_credentials/credentials.csv',

@@ -6,12 +6,13 @@ from time import sleep
 from argparse import ArgumentParser
 import datetime as dt
 
+from fabric.api import execute
 from fabric.network import disconnect_all
 from fabfile import (full_setup, update_stormtracks, update_stormtracks_aws, 
     st_worker_run, st_worker_status)
 
 from aws_helpers import (create_ec2_connection, create_image, create_instances, terminate_instances,
-    list_instances)
+    list_instances, find_instance, get_instances)
 from st_utils import setup_logging
 import amis
 
@@ -47,6 +48,10 @@ def main(args):
         instance = find_instance(conn, args.instance_id)
         host = instance.ip_address
         execute_fabric_commands(args, host)
+    elif args.action == 'st_worker_status_monitor':
+        instance = find_instance(conn, args.instance_id)
+        host = instance.ip_address
+        st_worker_status_monitor(args, host)
     else:
         raise AwsInteractionError('Unkown action: {0}'.format(args.action))
 
@@ -146,17 +151,20 @@ def execute_fabric_commands(args, host):
 
     # TODO: Poll for file creation.
     sleep(20)
+    st_worker_status_monitor(args, host)
+
+
+def st_worker_status_monitor(args, host):
     status = execute(st_worker_status, host=host)
     log.info(status[host])
     minutes = 0
-    while wait and status[host][:8] != 'analysed':
+    while status[host][:8] != 'analysed':
         log.info('{0}: Waited for {1}m'.format(status[host], minutes))
         minutes += 1
         sleep(60)
         status = execute(st_worker_status, host=host)
 
-    if wait:
-        log.info('Run full analysis')
+    log.info('Run full analysis')
 
 
 def parse_args():

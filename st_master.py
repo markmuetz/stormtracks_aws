@@ -5,7 +5,7 @@ import logging
 from time import sleep
 from argparse import ArgumentParser
 
-from fabric.api import execute
+from fabric.api import execute, env
 from fabric.network import disconnect_all
 
 import fabfile
@@ -18,6 +18,8 @@ log = setup_logging(name='st_master', filename='logs/st_master.log')
 def main(args):
     log.info('Action: {0}'.format(args.action))
 
+    env.user = "ubuntu"
+    env.key_filename = ["aws_credentials/st_worker1.pem"]
     conn = aws_helpers.create_ec2_connection(args.region)
     if args.action == 'create_instances':
         aws_helpers.create_instances(conn, args)

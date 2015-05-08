@@ -6,7 +6,7 @@ from time import sleep
 
 from boto.ec2 import connect_to_region
 from fabric.api import env, run, cd, settings, sudo, put, execute, task, prefix
-from fabric.api import parallel
+from fabric.api import parallel, hide
 from fabric.contrib.files import upload_template
 from fabric.context_managers import quiet
 
@@ -14,15 +14,12 @@ from aws_helpers import get_ec2_ip_addresses
 
 REGION = 'eu-central-1'
 
-env.user = "ubuntu"
-env.key_filename = ["aws_credentials/st_worker1.pem"]
-
-
 @task
 def set_hosts(tag="group", value="st_worker", region=REGION):
     key = "tag:{0}".format(tag)
     env.hosts = get_ec2_ip_addresses(region, key, value)
-    print(env.hosts)
+    env.user = "ubuntu"
+    env.key_filename = ["aws_credentials/st_worker1.pem"]
 
 
 @task
@@ -131,6 +128,29 @@ def file_exists():
 @task
 def supervisorctl(cmd, program):
     sudo('supervisorctl {0} {1}'.format(cmd, program))
+
+
+@task
+def monitor_directory_space(path='stormtracks_data/data/', poll_time=10):
+    with settings(hide('warnings', 'running', 'stdout', 'stderr'), 
+                  warn_only=True), cd(path):
+        sse, size = None, None
+        prev_sse, prev_size = None, None
+
+        while True:
+            output = run('date +"%s.%N" && du -s')
+            sse_str, size_str = output.split('\r\n')
+            prev_sse = sse
+            prev_size = size
+            sse = float(sse_str)
+            size = long(size_str.split('\t')[0])
+
+            if prev_sse != None:
+                elapsed_time = sse - prev_sse
+                delta_size = size - prev_size
+                print("{0:2.1f}MB/s".format((delta_size / elapsed_time) / 2**10))
+            sleep(poll_time)
+    return sse, size
 
 
 @task

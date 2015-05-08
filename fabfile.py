@@ -10,6 +10,8 @@ from fabric.api import parallel
 from fabric.contrib.files import upload_template
 from fabric.context_managers import quiet
 
+from aws_helpers import get_ec2_ip_addresses
+
 REGION = 'eu-central-1'
 
 env.user = "ubuntu"

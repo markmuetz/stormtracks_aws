@@ -11,7 +11,7 @@ def setup_logging(name, filename):
     streamHandler = logging.StreamHandler()
     streamHandler.setFormatter(streamFormatter)
 
-    log.setLevel(logging.INFO)
+    log.setLevel(logging.DEBUG)
     log.addHandler(fileHandler)
     log.addHandler(streamHandler)  
 

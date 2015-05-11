@@ -1,6 +1,6 @@
+"""For use on ubuntu EC2 instance."""
 import os
 
-# For use on ubuntu EC2 instance.
 SETTINGS_DIR = os.path.abspath(os.path.dirname(__file__))
 DATA_DIR = os.path.expandvars('$HOME/stormtracks_data/data')
 OUTPUT_DIR = os.path.expandvars('$HOME/stormtracks_data/output')

@@ -4,6 +4,7 @@
 *.o
 *.so
 */tags
+docs/_build
 aws_credentials/
 st_aws_env/
 logs/

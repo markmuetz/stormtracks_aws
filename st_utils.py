@@ -1,4 +1,8 @@
+"""
+Utilities for all stormtracks_aws files.
+"""
 import logging
+
 
 def setup_logging(name, filename, mode='a'):
     log = logging.getLogger(name)
@@ -16,6 +20,6 @@ def setup_logging(name, filename, mode='a'):
 
     log.setLevel(logging.DEBUG)
     log.addHandler(fileHandler)
-    log.addHandler(streamHandler)  
+    log.addHandler(streamHandler)
 
     return log

@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+"""
+Main executable for interacting with st_workers.
+Should be run on local (master or command) computer.
+Uses aws_helpers to interact with AWS services, e.g. creating new EC2 instances.
+Uses functions in fabfile to run remote commands on EC2 instances.
+"""
 from __future__ import print_function
 
 import logging
@@ -10,12 +16,19 @@ from fabric.network import disconnect_all
 
 import fabfile
 import aws_helpers
+from aws_helpers import AwsInteractionError
 from st_utils import setup_logging
 import amis
 
-log = setup_logging(name='st_master', filename='logs/st_master.log')
+
+if __name__ == '__main__':
+    log = setup_logging(name='st_master', filename='logs/st_master.log')
+
 
 def main(args):
+    """
+    Entry point: dispatches to function based on `args.action`.
+    """
     log.info('Action: {0}'.format(args.action))
 
     env.user = "ubuntu"
@@ -52,37 +65,28 @@ def main(args):
         raise aws_helpers.AwsInteractionError('Unkown action: {0}'.format(args.action))
 
 
-def st_status(conn, args):
-    key = "tag:{0}".format(args.tag)
-    instances = aws_helpers.get_instances(conn, filters={key: args.tag_value}, running=True)
-    for instance in instances:
-        host = instance.ip_address
-        execute(analysis_status, wait=True, host=host)
-
-
-def attach_mount(conn, args):
-    instance = aws_helpers.find_instance(conn, args.instance_id)
-    conn.attach_volume('vol-dd64eb93', instance.instance_id, '/dev/sdf')
-    sleep(5)
-    execute(mount_vol, host=instance.ip_address)
-
-
 def setup_st_worker_image(conn, args):
-    if False:
+    """
+    Either creates an image from scratch, starting with a blank Ubuntu image
+    and performing a full setup on it, or uses an existing instance to create
+    an image.
+    """
+    if args.create_image_from_scratch:
         images = conn.get_all_images(filters={'tag:name': args.image_nametag})
         if len(images) != 0:
-            raise aws_helpers.AwsInteractionError('Image with nametag {0} already exists! Delete and try'
-                    'again.'.format(args.image_nametag))
+            raise AwsInteractionError('Image with nametag {0} already exists! Delete and try'
+                                      'again.'.format(args.image_nametag))
 
         if args.num_instances != 1:
-            raise aws_helpers.AwsInteractionError('Should only be one instance for setup_st_worker_image')
+            raise AwsInteractionError('Should only be one instance for setup_st_worker_image')
 
         log.info('Creating instance')
         # Use Ubuntu AMI:
         args.image_id = amis.UBUNTU_1404_AMD64_AMI
         instances = aws_helpers.create_instances(conn, args)
         if len(instances) != 1:
-            raise aws_helpers.AwsInteractionError('Should only have created one instance for setup_st_worker_image')
+            raise AwsInteractionError('Should only have created one'
+                                      'instance for setup_st_worker_image')
 
         instance = instances[0]
         host = instance.ip_address
@@ -104,6 +108,12 @@ def setup_st_worker_image(conn, args):
 
 
 def run_analysis(conn, args):
+    """
+    Runs a full analysis.
+    Creates EC2 instances as necessary, allows them time to start up. Then executes
+    remote commands on them, getting them to download then analyse the given years,
+    monitoring their progress. Once they have finished, terminate all running instances.
+    """
     log.info('Running analysis: {0}-{1}'.format(args.start_year, args.end_year))
     if args.num_instances != 1:
         raise aws_helpers.AwsInteractionError('Should only be one instance for run_analysis')
@@ -117,7 +127,7 @@ def run_analysis(conn, args):
     args.image_id = image.id
     instances = aws_helpers.create_instances(conn, args)
     if len(instances) != 1:
-        raise aws_helpers.AwsInteractionError('Should only have created one instance for run_analysis')
+        raise AwsInteractionError('Should only have created one instance for run_analysis')
 
     instance = instances[0]
     host = instance.ip_address
@@ -137,6 +147,10 @@ def run_analysis(conn, args):
 
 
 def execute_fabric_commands(args, host):
+    """
+    Executes remote functions to run analysis on a given year for a given host.
+    Monitors their output to see when they are finished (blocking).
+    """
     log.info('Updating stormtracks')
     execute(fabfile.update_stormtracks, host=host)
     execute(fabfile.update_stormtracks_aws, host=host)
@@ -152,6 +166,9 @@ def execute_fabric_commands(args, host):
 
 
 def st_worker_status_monitor(args, host):
+    """
+    Monitor the status of an st_worker, looking for when they have finished their analysis.
+    """
     status = execute(fabfile.st_worker_status, host=host)
     log.info(status[host])
     minutes = 0
@@ -164,12 +181,37 @@ def st_worker_status_monitor(args, host):
     log.info('Run full analysis')
 
 
+def st_status(conn, args):
+    """
+    Gets analysis status of all instances
+    """
+    key = "tag:{0}".format(args.tag)
+    instances = aws_helpers.get_instances(conn, filters={key: args.tag_value}, running=True)
+    for instance in instances:
+        host = instance.ip_address
+        execute(analysis_status, wait=True, host=host)
+
+
+def attach_mount(conn, args):
+    """
+    Experimental: Attaches a specific mount to an instance.
+    """
+    instance = aws_helpers.find_instance(conn, args.instance_id)
+    conn.attach_volume('vol-dd64eb93', instance.instance_id, '/dev/sdf')
+    sleep(5)
+    execute(mount_vol, host=instance.ip_address)
+
+
 def parse_args():
+    """
+    Sets up arguments for this command when run from command line.
+    """
     parser = ArgumentParser()
     parser.add_argument('action')
     parser.add_argument('--instance-id')
     parser.add_argument('--image-id', default=amis.ST_WORKER_IMAGE_CURRENT)
     parser.add_argument('--image-nametag', default=amis.ST_WORKER_IMAGE_NAMETAG)
+    parser.add_argument('--create-image-from-scratch', default=False, action='store_true')
     parser.add_argument('-i', '--num-instances', type=int, default=1)
     parser.add_argument('-t', '--tag', default='group')
     parser.add_argument('-v', '--tag-value', default='st_worker')
@@ -188,8 +230,9 @@ if __name__ == '__main__':
     parser, args = parse_args()
     try:
         main(args)
-    except aws_helpers.AwsInteractionError, e:
+    except AwsInteractionError, e:
         log.error(e)
         parser.error(e)
     finally:
+        # Makes sure that fabric always disconnects from EC2 instances.
         disconnect_all()

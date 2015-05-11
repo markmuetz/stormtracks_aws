@@ -1,5 +1,13 @@
 #!/home/ubuntu/Projects/stormtracks/st_env/bin/python
-"""Will be run from st_worker ubuntu EC2 instance"""
+"""
+Will be run from st_worker ubuntu EC2 instance.
+
+Imports functions from stormtracks and stormtracks_aws and calls those functions to perform analysis
+on years defined by st_worker_settings.YEARS. Will download all NetCDF4 files for given years then
+perform tracking/matching analysis, then collect fields based on tracks.  Finally zips and sends all
+output to S3, then tidies up after itself (deletes NetCDF4 files) before starting on next year. All
+actions are logged to st_worker_status.log, which allows for (very simple) remote monitoring.
+"""
 # So I can access modules defined in parent dir.
 import sys
 sys.path.append('/home/ubuntu/Projects/stormtracks_aws')

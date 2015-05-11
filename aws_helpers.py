@@ -1,3 +1,10 @@
+"""
+Collection of utilities for interacting with AWS services.
+Uses `boto` to interact with AWS.
+
+Mainly uses the EC2 compute and S3 storage services.
+Credentials must be placed in file aws_credentials/credentials.csv (rel to .)
+"""
 from __future__ import print_function
 
 import os
@@ -20,23 +27,19 @@ class AwsInteractionError(Exception):
 
 
 def _get_credentials():
+    """
+    Reads and returns credentials as:
+    username, aws_access_key_id, aws_secret_access_key
+    """
     reader = csv.reader(open('aws_credentials/credentials.csv', 'r'))
-    reader.next() # Skip headers
+    reader.next()  # Skip headers
     return reader.next()
 
 
-def get_ec2_ip_addresses(region, key, value ="*"):
-    ip_addresses   = []
-    conn  = create_ec2_connection(region)
-    instances = conn.get_only_instances(filters = {key : value})
-    for instance in instances:
-        if instance.update() == 'running':
-            print("{0} is running".format(instance.ip_address))
-            ip_addresses.append(str(instance.ip_address))
-    return ip_addresses
-
-
 def create_ec2_connection(region):
+    """
+    Creates EC2 connection to the given region using credentials
+    """
     log.debug("Connecting to {0}".format(region))
     regions = [r.name for r in boto.ec2.regions()]
     if region not in regions:
@@ -45,12 +48,12 @@ def create_ec2_connection(region):
     username, aws_access_key_id, aws_secret_access_key = _get_credentials()
 
     conn = boto.ec2.connect_to_region(
-        region_name = region,
-        aws_access_key_id = aws_access_key_id,
-        aws_secret_access_key = aws_secret_access_key
+        region_name=region,
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key
     )
 
-    if conn != None:
+    if conn is not None:
         log.debug("Connection with AWS established")
     else:
         raise Exception("Connection not created")
@@ -58,7 +61,24 @@ def create_ec2_connection(region):
     return conn
 
 
+def get_ec2_ip_addresses(region, key, value="*"):
+    """
+    Returns IP adresses of all servers with a given key/value
+    """
+    ip_addresses = []
+    conn = create_ec2_connection(region)
+    instances = conn.get_only_instances(filters={key: value})
+    for instance in instances:
+        if instance.update() == 'running':
+            log.debug("{0} is running".format(instance.ip_address))
+            ip_addresses.append(str(instance.ip_address))
+    return ip_addresses
+
+
 def create_instances(conn, args):
+    """
+    Creates instance(s) using args.
+    """
     if not args.allow_multiple_instances:
         key = "tag:{0}".format(args.tag)
         instances = get_instances(conn, filters={key: args.tag_value})
@@ -74,20 +94,20 @@ def create_instances(conn, args):
     # Create block device mapping.
     bdm = boto.ec2.blockdevicemapping.BlockDeviceMapping()
     dev_sda1 = boto.ec2.blockdevicemapping.EBSBlockDeviceType(delete_on_termination=True)
-    dev_sda1.size = 18 # size in Gigabytes
-    bdm['/dev/sda1'] = dev_sda1 
+    dev_sda1.size = 18  # size in Gigabytes
+    bdm['/dev/sda1'] = dev_sda1
 
-    reservations = conn.run_instances(args.image_id, 
+    reservations = conn.run_instances(args.image_id,
                                       min_count=args.num_instances,
                                       max_count=args.num_instances,
-                                      key_name='st_worker1', 
-                                      instance_type=args.instance_type, 
+                                      key_name='st_worker1',
+                                      instance_type=args.instance_type,
                                       security_groups=['st_worker_security'],
                                       block_device_map=bdm)
 
     if len(reservations.instances) != args.num_instances:
-        raise Exception('Not enough instances created ({0}/{1})'.\
-            format(len(reservations.instances), args.args.num_instances))
+        raise Exception('Not enough instances created ({0}/{1})'.
+                        format(len(reservations.instances), args.args.num_instances))
 
     for instance in reservations.instances:
         instance.add_tag(args.tag, args.tag_value)
@@ -106,7 +126,7 @@ def create_instances(conn, args):
                 running_count += 1
                 if instance not in running_instances:
                     running_instances.append(instance)
-        log.info('Instances running: ({0}/{1})'.format(running_count, args.num_instances)) 
+        log.info('Instances running: ({0}/{1})'.format(running_count, args.num_instances))
 
     # conn.attach_volume('vol-dd64eb93', instance.id, '/dev/sdf')
 
@@ -115,6 +135,9 @@ def create_instances(conn, args):
 
 
 def list_instances(conn, args, running=True):
+    """
+    Lists all running instances.
+    """
     key = "tag:{0}".format(args.tag)
     instances = get_instances(conn, filters={key: args.tag_value}, running=running)
     log.debug('key: {0}, value: {1}'.format(key, args.tag_value))
@@ -123,10 +146,14 @@ def list_instances(conn, args, running=True):
         log.info('    inst id   : {0}'.format(instance.id))
         log.info('    state     : {0}'.format(instance.update()))
         log.info('    IP address: {0}'.format(instance.ip_address))
-        log.info('    conn cmd  : "ssh -i aws_credentials/st_worker1.pem ubuntu@{0}"'.format(instance.ip_address))
+        log.info('    conn cmd  : "ssh -i aws_credentials/st_worker1.pem ubuntu@{0}"'.
+                 format(instance.ip_address))
 
 
 def terminate_instances(conn, args):
+    """
+    Terminates all running instances with given tag/value.
+    """
     key = "tag:{0}".format(args.tag)
     instances = get_instances(conn, filters={key: args.tag_value})
     for instance in instances:
@@ -145,11 +172,14 @@ def terminate_instances(conn, args):
             else:
                 terminated_count += 1
 
-        log.info('Instances terminated: ({0}/{1})'.format(terminated_count, len(instances))) 
-    log.info('All instances terminated') 
+        log.info('Instances terminated: ({0}/{1})'.format(terminated_count, len(instances)))
+    log.info('All instances terminated')
 
 
 def find_instance(conn, instance_id, running=True):
+    """
+    Find a specific instance based on its ID.
+    """
     instances = get_instances(conn, filters={'instance-id': instance_id}, running=running)
     if len(instances) != 1:
         log.error('Found {0} instances'.format(len(instances)))
@@ -158,6 +188,9 @@ def find_instance(conn, instance_id, running=True):
 
 
 def get_instances(conn, filters, running=True):
+    """
+    Get all instances subject to filters and wheter or not they are running.
+    """
     ret_instances = []
     instances = conn.get_only_instances(filters=filters)
     for instance in instances:
@@ -165,14 +198,19 @@ def get_instances(conn, filters, running=True):
             if instance.update() == 'running':
                 log.debug("Instance running {0}".format(instance.public_dns_name))
                 ret_instances.append(instance)
-        else:
-            log.debug("Instance {0} {1}".format(instance.update(), instance.public_dns_name))
-            ret_instances.append(instance)
-                
+            else:
+                log.debug("Instance {0} {1}".format(instance.update(), instance.public_dns_name))
+                ret_instances.append(instance)
+
     return ret_instances
 
 
 def create_image(conn, instance_id, image_nametag, args):
+    """
+    Creates an AMI image from the given instance ID.
+
+    Can take a while and will force reboot of instance.
+    """
     log.info('Creating image from instance: {0}'.format(instance_id))
     instance = find_instance(conn, instance_id)
     name = dt.datetime.strftime(dt.datetime.now(), 'st_worker_ubuntu-14-04_%Y-%m-%d-%H-%M')
@@ -197,6 +235,9 @@ def create_image(conn, instance_id, image_nametag, args):
 
 
 def upload_large_file(filename):
+    """
+    Uploads a large file to AWS S3.
+    """
     username, aws_access_key_id, aws_secret_access_key = _get_credentials()
     conn = boto.connect_s3(aws_access_key_id=aws_access_key_id,
                            aws_secret_access_key=aws_secret_access_key)
@@ -221,8 +262,7 @@ def upload_large_file(filename):
         log.debug('Uploading chunk {0}'.format(i + 1))
         offset = chunk_size * i
         bytes = min(chunk_size, source_size - offset)
-        with FileChunkIO(source_path, 'r', offset=offset,
-                             bytes=bytes) as fp:
+        with FileChunkIO(source_path, 'r', offset=offset, bytes=bytes) as fp:
             mp.upload_part_from_file(fp, part_num=i + 1)
 
     # Finish the upload
@@ -230,6 +270,9 @@ def upload_large_file(filename):
 
 
 def publish_message():
+    """
+    Experimental: publishes message to SNS.
+    """
     conn = create_sns_connection('eu-central-1')
     conn.publish(topic='arn:aws:sns:eu-central-1:787530111813:st',
                  subject='sns test1',
@@ -238,17 +281,15 @@ def publish_message():
 
 def create_sns_connection(region):
     print("Connecting to {0}".format(region))
-    reader = csv.reader(open('credentials.csv', 'r'))
-    reader.next()
-    username, aws_access_key_id, aws_secret_access_key = reader.next()
+    username, aws_access_key_id, aws_secret_access_key = _get_credentials()
 
     conn = boto.sns.connect_to_region(
-        region_name = region,
-        aws_access_key_id = aws_access_key_id,
-        aws_secret_access_key = aws_secret_access_key
+        region_name=region,
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key
     )
 
-    if conn != None:
+    if conn is not None:
         print("Connection with AWS established")
     else:
         raise Exception("Connection not created")

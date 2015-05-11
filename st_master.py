@@ -240,7 +240,7 @@ def st_worker_status_monitor(process_log, args, host):
     process_log.info(status[host])
     minutes = 0
     while status[host][:14] != 'analysed years':
-        process_log.info('{0}: Waited for {1}m'.format(status[host], minutes))
+        process_log.info('{0}: {1}, waited for {2}m'.format(host, status[host], minutes))
         minutes += 1
         sleep(60)
         status = execute(fabfile.st_worker_status, host=host)

@@ -3,6 +3,7 @@ import pep8
 
 
 class TestCodeFormat:
+    """Test all Python files for PEP8 conformance. (Bar E501 - line length set to 100)"""
     def __init__(self):
         # set max line length to something more accommodating.
         pep8.MAX_LINE_LENGTH = 100
@@ -15,17 +16,19 @@ class TestCodeFormat:
             assert result.total_errors == 0, "Found code style errors (and warnings)."
 
     def test_1_main_pep8_conformance(self):
-        """Test that all tests conforms to PEP8. (Bar E501)"""
+        """Test all main files"""
         filenames = glob('../*.py')
         self._test_conformance_in_files(filenames)
 
     def test_2_st_worker_files_pep8_conformance(self):
-        """Test that all tests conforms to PEP8. (Bar E501)"""
+        """Test all st_worker_files"""
         filenames = glob('../st_worker_files/*.py')
         filenames.remove('../st_worker_files/st_worker_settings.tpl.py')  # template file: remove.
         self._test_conformance_in_files(filenames)
 
     def test_3_tests_pep8_conformance(self):
-        """Test that all tests conforms to PEP8. (Bar E501)"""
+        """Test all tests"""
         filenames = glob('pep8_tests/*.py')
+        self._test_conformance_in_files(filenames)
+        filenames = glob('aws_tests/*.py')
         self._test_conformance_in_files(filenames)

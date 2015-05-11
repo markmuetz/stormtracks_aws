@@ -1,12 +1,13 @@
 import sys
-sys.path.insert(0, '..')
 import os
+sys.path.insert(0, '..')
 
 import aws_helpers
 from aws_helpers import AwsInteractionError
 os.chdir('..')
 
 REGION = 'eu-central-1'
+
 
 class TestAwsConnections:
     def test_1_credentials(self):

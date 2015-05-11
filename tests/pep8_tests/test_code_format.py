@@ -3,17 +3,22 @@ import pep8
 
 
 class TestCodeFormat:
-    """Test all Python files for PEP8 conformance. (Bar E501 - line length set to 100)"""
+    """Test all Python files for PEP8 conformance.
+    (Bar E501 - line length set to 100, E402 - import's have to be at start of file)"""
     def __init__(self):
         # set max line length to something more accommodating.
         pep8.MAX_LINE_LENGTH = 100
-        self.pep8style = pep8.StyleGuide()
+        # Ignore errors from sys.path.append(...) at start of files.
+        self.pep8style = pep8.StyleGuide(ignore=['E402'])
 
     def _test_conformance_in_files(self, filenames):
         assert len(filenames) != 0
+        any_errors = False
         for filename in filenames:
             result = self.pep8style.check_files([filename])
-            assert result.total_errors == 0, "Found code style errors (and warnings)."
+            if result.total_errors != 0:
+                any_errors = True
+        assert not any_errors, "Found code style errors (and warnings)."
 
     def test_1_main_pep8_conformance(self):
         """Test all main files"""
@@ -30,5 +35,5 @@ class TestCodeFormat:
         """Test all tests"""
         filenames = glob('pep8_tests/*.py')
         self._test_conformance_in_files(filenames)
-        filenames = glob('aws_tests/*.py')
+        filenames = glob('aws_interaction/*.py')
         self._test_conformance_in_files(filenames)

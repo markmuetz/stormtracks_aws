@@ -204,6 +204,7 @@ def delete_2003(path='stormtracks_data/data/c20_full/2003'):
 
 
 @task
+@parallel
 def monitor_directory_space(path='stormtracks_data/data/', poll_time=10):
     """
     Calculated rate of growth of files in directory
@@ -224,7 +225,7 @@ def monitor_directory_space(path='stormtracks_data/data/', poll_time=10):
             if prev_sse is not None:
                 elapsed_time = sse - prev_sse
                 delta_size = size - prev_size
-                print("{0:2.1f}MB/s".format((delta_size / elapsed_time) / 2**10))
+                print("{0}: {1:2.1f}MB/s".format(env.host, (delta_size / elapsed_time) / 2**10))
             sleep(poll_time)
     return sse, size
 

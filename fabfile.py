@@ -66,14 +66,14 @@ def update_stormtracks_aws():
 
 
 @task
-def st_worker_run(start_year, end_year):
+def st_worker_run(years):
     """
     Configures worker to run with given years by copying settings then starting worker.
     Uses settings template to say which years to run analysis on.
     """
     upload_template('st_worker_files/st_worker_settings.tpl.py',
                     'Projects/stormtracks_aws/st_worker_files/st_worker_settings.py',
-                    {'start_year': str(start_year), 'end_year': str(int(end_year) + 1)})
+                    {'years': years})
 
     put('st_worker_files/dotstormtracks.bz2', 'dotstormtracks.bz2')
     run('tar xvf dotstormtracks.bz2')
@@ -115,8 +115,8 @@ def basic_setup():
     sudo('pip install virtualenv')
     run('hg clone https://bitbucket.org/markmuetz/dotfiles')
     with cd('dotfiles'):
-        for f in [".bashrc",  ".gitconfig",  ".hgrc",  ".inputrc",  ".profile",
-                  ".screenrc",  ".vim",  ".vimrc", ".zshrc"]:
+        for f in [".bashrc", ".gitconfig", ".hgrc", ".inputrc", ".profile",
+                  ".screenrc", ".vim", ".vimrc", ".zshrc"]:
             run('cp -r {0} ..'.format(f))
 
 

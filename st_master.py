@@ -10,6 +10,7 @@ from __future__ import print_function
 import logging
 from time import sleep
 from argparse import ArgumentParser
+import multiprocessing as mp
 
 from fabric.api import execute, env
 from fabric.network import disconnect_all
@@ -60,7 +61,7 @@ def main(args):
     elif args.action == 'st_worker_status_monitor':
         instance = aws_helpers.find_instance(conn, args.instance_id)
         host = instance.ip_address
-        st_worker_status_monitor(args, host)
+        st_worker_status_monitor(log, args, host)
     else:
         raise aws_helpers.AwsInteractionError('Unkown action: {0}'.format(args.action))
 
@@ -107,6 +108,26 @@ def setup_st_worker_image(conn, args):
     log.info("Success! Run 'python aws_interaction.py run_analysis'")
 
 
+def match_instances_to_years(instances, years):
+    min_years_per_instance = len(years) // len(instances)
+    extra_years = len(years) - len(instances) * min_years_per_instance
+    instance_to_years_map = {}
+    year_index = 0
+    for instance in instances:
+        years_per_instance = min_years_per_instance
+        if extra_years:
+            extra_years -= 1
+            years_per_instance += 1
+
+        instance_to_years_map[instance] = []
+        for i in range(year_index, year_index + years_per_instance):
+            instance_to_years_map[instance].append(years[i])
+
+        year_index += years_per_instance
+
+    return instance_to_years_map
+
+
 def run_analysis(conn, args):
     """
     Runs a full analysis.
@@ -115,73 +136,115 @@ def run_analysis(conn, args):
     monitoring their progress. Once they have finished, terminate all running instances.
     """
     log.info('Running analysis: {0}-{1}'.format(args.start_year, args.end_year))
-    if args.num_instances != 1:
-        raise aws_helpers.AwsInteractionError('Should only be one instance for run_analysis')
+    if not args.allow_multiple_instances and args.num_instances != 1:
+        raise AwsInteractionError('Should only be one instance for run_analysis')
 
     log.info('Creating instance from image')
     images = conn.get_all_images(filters={'tag:name': args.image_nametag})
     if len(images) != 1:
-        raise aws_helpers.AwsInteractionError('Should be exactly one image')
+        raise AwsInteractionError('Should be exactly one image')
     image = images[0]
 
     args.image_id = image.id
-    instances = aws_helpers.create_instances(conn, args)
-    if len(instances) != 1:
-        raise AwsInteractionError('Should only have created one instance for run_analysis')
 
-    instance = instances[0]
-    host = instance.ip_address
-    log.info('Running on host:{0}, instance_id: {1}'.format(host, instance.id))
+    if args.dry_run:
+        class O(object):
+            pass
 
-    log.info('Sleeping for 60s to allow instance to get ready')
-    sleep(60)
+        instances = [O() for i in range(args.num_instances)]
+        for i, instance in enumerate(instances):
+            instance.ip_address = '123.213.413.{0}'.format(i)
+            instance.id = i
+    else:
+        instances = aws_helpers.create_instances(conn, args)
 
-    log.info('Executing fabric commands')
-    execute_fabric_commands(args, host)
+    if len(instances) != args.num_instances:
+        raise AwsInteractionError('Should have created exactly {0} instance(s) for run_analysis\n'
+                                  'Created {1}'.format(args.num_instances, len(instances)))
+
+    if not args.dry_run:
+        log.info('Sleeping for 60s to allow instance(s) to get ready')
+        sleep(60)
+
+    years = range(args.start_year, args.end_year + 1)
+    instance_to_years_map = match_instances_to_years(instances, years)
+    log.debug(instance_to_years_map)
+
+    procs = []
+    for instance in instances:
+        host = instance.ip_address
+        log.info('Running on host:{0}, instance_id: {1}'.format(host, instance.id))
+
+        p = mp.Process(name=host, target=execute_fabric_commands,
+                       kwargs={
+                           'args': args,
+                           'host': host,
+                           'years': instance_to_years_map[instance]})
+        procs.append(p)
+
+        log.info('Executing fabric commands')
+        p.start()
+
+    while procs:
+        finished_procs = []
+        for p in procs:
+            p.join(timeout=0.01)
+            if not p.is_alive():
+                log.info("proc {0} finished".format(p))
+                finished_procs.append(p)
+        for p in finished_procs:
+            procs.remove(p)
+
+        if procs:
+            sleep(10)
 
     log.info('Terminating all instances')
-    aws_helpers.terminate_instances(conn, args)
+    if not args.dry_run:
+        aws_helpers.terminate_instances(conn, args)
 
     log.info('Done')
     fabfile.notify()
 
 
-def execute_fabric_commands(args, host):
+def execute_fabric_commands(args, host, years):
     """
     Executes remote functions to run analysis on a given year for a given host.
     Monitors their output to see when they are finished (blocking).
     """
-    log.warn('TEMPORARY: deleting 2003')
-    execute(fabfile.delete_2003, host=host)
+    process_log = setup_logging(name='st_master'.format(host),
+                                filename='logs/st_master_{0}.log'.format(host))
+    if not args.dry_run:
+        process_log.warn('TEMPORARY: deleting 2003')
+        execute(fabfile.delete_2003, host=host)
 
-    log.info('Updating stormtracks')
-    execute(fabfile.update_stormtracks, host=host)
-    execute(fabfile.update_stormtracks_aws, host=host)
+        process_log.info('Updating stormtracks')
+        execute(fabfile.update_stormtracks, host=host)
+        execute(fabfile.update_stormtracks_aws, host=host)
 
-    log.info('Starting anaysis')
-    execute(fabfile.st_worker_run, start_year=args.start_year, end_year=args.end_year, host=host)
+        process_log.info('Starting anaysis')
+        execute(fabfile.st_worker_run, years=years, host=host)
 
-    log.info('Sleeping for 20s to allow creation of logfile')
+        process_log.info('Sleeping for 20s to allow creation of logfile')
 
-    # TODO: Poll for file creation.
-    sleep(20)
-    st_worker_status_monitor(args, host)
+        # TODO: Poll for file creation.
+        sleep(20)
+        st_worker_status_monitor(process_log, args, host)
 
 
-def st_worker_status_monitor(args, host):
+def st_worker_status_monitor(process_log, args, host):
     """
     Monitor the status of an st_worker, looking for when they have finished their analysis.
     """
     status = execute(fabfile.st_worker_status, host=host)
-    log.info(status[host])
+    process_log.info(status[host])
     minutes = 0
     while status[host][:14] != 'analysed years':
-        log.info('{0}: Waited for {1}m'.format(status[host], minutes))
+        process_log.info('{0}: Waited for {1}m'.format(status[host], minutes))
         minutes += 1
         sleep(60)
         status = execute(fabfile.st_worker_status, host=host)
 
-    log.info('Run full analysis')
+    process_log.info('Run full analysis')
 
 
 def st_status(conn, args):
@@ -223,6 +286,7 @@ def parse_args():
     parser.add_argument('-n', '--num-ensemble-members', type=int, default=56)
     parser.add_argument('-r', '--region', default='eu-central-1')
     parser.add_argument('-a', '--allow-multiple-instances', default=False, action='store_true')
+    parser.add_argument('-d', '--dry-run', default=False, action='store_true')
     parser.add_argument('--instance-type', default='t2.medium')
     args = parser.parse_args()
 

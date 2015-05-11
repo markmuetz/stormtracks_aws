@@ -198,9 +198,9 @@ def get_instances(conn, filters, running=True):
             if instance.update() == 'running':
                 log.debug("Instance running {0}".format(instance.public_dns_name))
                 ret_instances.append(instance)
-            else:
-                log.debug("Instance {0} {1}".format(instance.update(), instance.public_dns_name))
-                ret_instances.append(instance)
+        else:
+            log.debug("Instance {0} {1}".format(instance.update(), instance.public_dns_name))
+            ret_instances.append(instance)
 
     return ret_instances
 

@@ -199,6 +199,11 @@ def supervisorctl(cmd, program):
 
 
 @task
+def delete_2003(path='stormtracks_data/data/c20_full/2003'):
+    run('rm -rf {0}'.format(path))
+
+
+@task
 def monitor_directory_space(path='stormtracks_data/data/', poll_time=10):
     """
     Calculated rate of growth of files in directory

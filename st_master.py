@@ -151,6 +151,9 @@ def execute_fabric_commands(args, host):
     Executes remote functions to run analysis on a given year for a given host.
     Monitors their output to see when they are finished (blocking).
     """
+    log.warn('TEMPORARY: deleting 2003')
+    execute(fabfile.delete_2003, host=host)
+
     log.info('Updating stormtracks')
     execute(fabfile.update_stormtracks, host=host)
     execute(fabfile.update_stormtracks_aws, host=host)

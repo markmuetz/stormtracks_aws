@@ -225,7 +225,8 @@ def monitor_directory_space(path='stormtracks_data/data/', poll_time=10):
             if prev_sse is not None:
                 elapsed_time = sse - prev_sse
                 delta_size = size - prev_size
-                print("{0}: {1:2.1f}MB/s".format(env.host, (delta_size / elapsed_time) / 2**10))
+                print("{0}: {1:2.1f}MB/s - {2:4.0f}MB Total".
+                      format(env.host, (delta_size / elapsed_time) / 2**10, size / 2**10))
             sleep(poll_time)
     return sse, size
 

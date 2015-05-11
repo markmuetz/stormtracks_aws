@@ -212,7 +212,8 @@ def execute_fabric_commands(args, host, years):
     Monitors their output to see when they are finished (blocking).
     """
     process_log = setup_logging(name='st_master'.format(host),
-                                filename='logs/st_master_{0}.log'.format(host))
+                                filename='logs/st_master_{0}.log'.format(host),
+                                use_console=False)
     if not args.dry_run:
         process_log.warn('TEMPORARY: deleting 2003')
         execute(fabfile.delete_2003, host=host)

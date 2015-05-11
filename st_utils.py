@@ -4,22 +4,23 @@ Utilities for all stormtracks_aws files.
 import logging
 
 
-def setup_logging(name, filename, mode='a'):
+def setup_logging(name, filename, mode='a', use_console=True):
     log = logging.getLogger(name)
 
     if name == 'st_worker_status':
         formatter = logging.Formatter('%(message)s')
     else:
         formatter = logging.Formatter('%(asctime)s %(name)-16s %(levelname)-8s %(message)s')
+
     fileHandler = logging.FileHandler(filename, mode=mode)
     fileHandler.setFormatter(formatter)
-
-    streamFormatter = logging.Formatter('%(message)s')
-    streamHandler = logging.StreamHandler()
-    streamHandler.setFormatter(streamFormatter)
-
     log.setLevel(logging.DEBUG)
     log.addHandler(fileHandler)
-    log.addHandler(streamHandler)
+
+    if use_console:
+        streamFormatter = logging.Formatter('%(message)s')
+        streamHandler = logging.StreamHandler()
+        streamHandler.setFormatter(streamFormatter)
+        log.addHandler(streamHandler)
 
     return log

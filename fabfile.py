@@ -66,11 +66,18 @@ def update_stormtracks_aws():
 
 
 @task
+def get_system_state():
+    with cd('Projects/stormtracks_aws/st_worker_files'):
+        run('python get_system_state.py')
+
+
+@task
 def st_worker_run(years):
     """
     Configures worker to run with given years by copying settings then starting worker.
     Uses settings template to say which years to run analysis on.
     """
+    get_system_state()
     upload_template('st_worker_files/st_worker_settings.tpl.py',
                     'Projects/stormtracks_aws/st_worker_files/st_worker_settings.py',
                     {'years': years})
@@ -90,6 +97,20 @@ def st_worker_status():
     cmd = 'tail -n1 /home/ubuntu/stormtracks_data/logs/st_worker_status.log'
     status = run(cmd)
     return status
+
+
+@task
+def retrieve_logs():
+    if not os.path.exists('logs/remote'):
+        os.makedirs('logs/remote')
+    get('/home/ubuntu/stormtracks_data/logs/st_worker_status.log',
+        'logs/remote/st_worker_status_{0}.log'.format(env.host))
+    get('/home/ubuntu/stormtracks_data/logs/analysis.log',
+        'logs/remote/analysis_{0}.log'.format(env.host))
+    get('/home/ubuntu/stormtracks_data/logs/download.log',
+        'logs/remote/download_{0}.log'.format(env.host))
+    get('/home/ubuntu/stormtracks_data/logs/system_state.txt',
+        'logs/remote/system_state_{0}.txt'.format(env.host))
 
 
 @task

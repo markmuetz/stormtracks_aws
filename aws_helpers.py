@@ -150,6 +150,18 @@ def list_instances(conn, args, running=True):
                  format(instance.ip_address))
 
 
+def terminate_instance(conn, args, instance):
+    """
+    Terminates given instance.
+    """
+    log.info('Terminating instance: {0}'.format(instance.id))
+    instance.terminate()
+    while not instance.update() != 'terminated':
+        sleep(1)
+        log.debug(instance.state)
+    log.info('Instance terminated')
+
+
 def terminate_instances(conn, args):
     """
     Terminates all running instances with given tag/value.

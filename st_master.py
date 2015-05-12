@@ -170,32 +170,34 @@ def run_analysis(conn, args):
     instance_to_years_map = match_instances_to_years(instances, years)
     log.debug(instance_to_years_map)
 
-    procs = []
+    instance_procs = []
     for instance in instances:
         host = instance.ip_address
         log.info('Running on host:{0}, instance_id: {1}'.format(host, instance.id))
 
-        p = mp.Process(name=host, target=execute_fabric_commands,
-                       kwargs={
-                           'args': args,
-                           'host': host,
-                           'years': instance_to_years_map[instance]})
-        procs.append(p)
+        proc = mp.Process(name=host, target=execute_fabric_commands,
+                          kwargs={
+                              'args': args,
+                              'host': host,
+                              'years': instance_to_years_map[instance]})
+        instance_procs.append((instance, proc))
 
         log.info('Executing fabric commands')
-        p.start()
+        proc.start()
 
-    while procs:
-        finished_procs = []
-        for p in procs:
-            p.join(timeout=0.01)
-            if not p.is_alive():
-                log.info("proc {0} finished".format(p))
-                finished_procs.append(p)
-        for p in finished_procs:
-            procs.remove(p)
+    while instance_procs:
+        finished_instance_procs = []
+        for instance, proc in instance_procs:
+            proc.join(timeout=0.01)
+            if not proc.is_alive():
+                log.info("proc {0} finished".format(proc))
+                finished_instance_procs.append((instance, proc))
+        for instance_proc in finished_instance_procs:
+            instance_procs.remove(instance_proc)
+            instance, proc = instance_proc
+            aws_helpers.terminate_instance(instance)
 
-        if procs:
+        if instance_procs:
             sleep(10)
 
     log.info('Terminating all instances')
@@ -230,6 +232,9 @@ def execute_fabric_commands(args, host, years):
         # TODO: Poll for file creation.
         sleep(20)
         st_worker_status_monitor(process_log, args, host)
+
+        process_log.info('Retrieving logs')
+        execute(fabfile.retrieve_logs, host=host)
 
 
 def st_worker_status_monitor(process_log, args, host):

@@ -135,76 +135,69 @@ def run_analysis(conn, args):
     remote commands on them, getting them to download then analyse the given years,
     monitoring their progress. Once they have finished, terminate all running instances.
     """
-    log.info('Running analysis: {0}-{1}'.format(args.start_year, args.end_year))
-    if not args.allow_multiple_instances and args.num_instances != 1:
-        raise AwsInteractionError('Should only be one instance for run_analysis')
+    try:
+        log.info('Running analysis: {0}-{1}'.format(args.start_year, args.end_year))
+        if not args.allow_multiple_instances and args.num_instances != 1:
+            raise AwsInteractionError('Should only be one instance for run_analysis')
 
-    log.info('Creating instance from image')
-    images = conn.get_all_images(filters={'tag:name': args.image_nametag})
-    if len(images) != 1:
-        raise AwsInteractionError('Should be exactly one image')
-    image = images[0]
+        log.info('Creating instance from image')
+        images = conn.get_all_images(filters={'tag:name': args.image_nametag})
+        if len(images) != 1:
+            raise AwsInteractionError('Should be exactly one image')
+        image = images[0]
 
-    args.image_id = image.id
+        args.image_id = image.id
 
-    if args.dry_run:
-        class O(object):
-            pass
-
-        instances = [O() for i in range(args.num_instances)]
-        for i, instance in enumerate(instances):
-            instance.ip_address = '123.213.413.{0}'.format(i)
-            instance.id = i
-    else:
         instances = aws_helpers.create_instances(conn, args)
 
-    if len(instances) != args.num_instances:
-        raise AwsInteractionError('Should have created exactly {0} instance(s) for run_analysis\n'
-                                  'Created {1}'.format(args.num_instances, len(instances)))
+        if len(instances) != args.num_instances:
+            raise AwsInteractionError('Should have created exactly {0} instance(s) for run_analysis\n'
+                                      'Created {1}'.format(args.num_instances, len(instances)))
 
-    if not args.dry_run:
         log.info('Sleeping for 60s to allow instance(s) to get ready')
         sleep(60)
 
-    years = range(args.start_year, args.end_year + 1)
-    instance_to_years_map = match_instances_to_years(instances, years)
-    log.debug(instance_to_years_map)
+        years = range(args.start_year, args.end_year + 1)
+        instance_to_years_map = match_instances_to_years(instances, years)
+        log.debug(instance_to_years_map)
 
-    instance_procs = []
-    for instance in instances:
-        host = instance.ip_address
-        log.info('Running on host:{0}, instance_id: {1}'.format(host, instance.id))
+        instance_procs = []
+        for instance in instances:
+            host = instance.ip_address
+            log.info('Running on host:{0}, instance_id: {1}'.format(host, instance.id))
 
-        proc = mp.Process(name=host, target=execute_fabric_commands,
-                          kwargs={
-                              'args': args,
-                              'host': host,
-                              'years': instance_to_years_map[instance]})
-        instance_procs.append((instance, proc))
+            proc = mp.Process(name=host, target=execute_fabric_commands,
+                              kwargs={
+                                  'args': args,
+                                  'host': host,
+                                  'years': instance_to_years_map[instance]})
+            instance_procs.append((instance, proc))
 
-        log.info('Executing fabric commands')
-        proc.start()
+            log.info('Executing fabric commands')
+            proc.start()
 
-    while instance_procs:
-        finished_instance_procs = []
-        for instance, proc in instance_procs:
-            proc.join(timeout=0.01)
-            if not proc.is_alive():
-                log.info("proc {0} finished".format(proc))
-                finished_instance_procs.append((instance, proc))
-        for instance_proc in finished_instance_procs:
-            instance_procs.remove(instance_proc)
-            instance, proc = instance_proc
-            aws_helpers.terminate_instance(instance)
+        while instance_procs:
+            finished_instance_procs = []
+            for instance, proc in instance_procs:
+                proc.join(timeout=0.01)
+                if not proc.is_alive():
+                    log.info("proc {0} finished".format(proc))
+                    finished_instance_procs.append((instance, proc))
+            for instance_proc in finished_instance_procs:
+                instance_procs.remove(instance_proc)
+                instance, proc = instance_proc
+                # Don't need to monitor to make sure it's finished.
+                instance.terminate()
 
-        if instance_procs:
-            sleep(10)
+            if instance_procs:
+                sleep(10)
 
-    log.info('Terminating all instances')
-    if not args.dry_run:
+        log.info('Done')
+    finally:
+        log.info('Terminating all instances')
+        # Make sure this happens whatever!
         aws_helpers.terminate_instances(conn, args)
 
-    log.info('Done')
     fabfile.notify()
 
 
@@ -216,25 +209,24 @@ def execute_fabric_commands(args, host, years):
     process_log = setup_logging(name='st_master'.format(host),
                                 filename='logs/st_master_{0}.log'.format(host),
                                 use_console=False)
-    if not args.dry_run:
-        process_log.warn('TEMPORARY: deleting 2003')
-        execute(fabfile.delete_2003, host=host)
+    process_log.warn('TEMPORARY: deleting 2003')
+    execute(fabfile.delete_2003, host=host)
 
-        process_log.info('Updating stormtracks')
-        execute(fabfile.update_stormtracks, host=host)
-        execute(fabfile.update_stormtracks_aws, host=host)
+    process_log.info('Updating stormtracks')
+    execute(fabfile.update_stormtracks, host=host)
+    execute(fabfile.update_stormtracks_aws, host=host)
 
-        process_log.info('Starting anaysis')
-        execute(fabfile.st_worker_run, years=years, host=host)
+    process_log.info('Starting anaysis')
+    execute(fabfile.st_worker_run, years=years, host=host)
 
-        process_log.info('Sleeping for 20s to allow creation of logfile')
+    process_log.info('Sleeping for 20s to allow creation of logfile')
 
-        # TODO: Poll for file creation.
-        sleep(20)
-        st_worker_status_monitor(process_log, args, host)
+    # TODO: Poll for file creation.
+    sleep(20)
+    st_worker_status_monitor(process_log, args, host)
 
-        process_log.info('Retrieving logs')
-        execute(fabfile.retrieve_logs, host=host)
+    process_log.info('Retrieving logs')
+    execute(fabfile.retrieve_logs, host=host)
 
 
 def st_worker_status_monitor(process_log, args, host):

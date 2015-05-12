@@ -20,7 +20,7 @@ from subprocess import call
 from time import sleep
 
 from boto.ec2 import connect_to_region
-from fabric.api import env, run, cd, settings, sudo, put, execute, task, prefix
+from fabric.api import env, run, cd, settings, sudo, put, execute, task, prefix, get
 from fabric.api import parallel, hide
 from fabric.contrib.files import upload_template
 from fabric.context_managers import quiet
@@ -109,7 +109,7 @@ def retrieve_logs():
         'logs/remote/analysis_{0}.log'.format(env.host))
     get('/home/ubuntu/stormtracks_data/logs/download.log',
         'logs/remote/download_{0}.log'.format(env.host))
-    get('/home/ubuntu/stormtracks_data/logs/system_state.txt',
+    get('/home/ubuntu/Projects/stormtracks_aws/logs/system_state.txt',
         'logs/remote/system_state_{0}.txt'.format(env.host))
 
 

@@ -29,7 +29,7 @@ def main():
                 cmd = '. {0} && {1}'.format(os.path.expandvars(venv), cmd)
 
             cmds_txt.write('=' * 80 + '\n')
-            cmds_txt.write(cmd)
+            cmds_txt.write(cmd + '\n')
             cmds_txt.write('=' * 80 + '\n')
             print(cmd)
 

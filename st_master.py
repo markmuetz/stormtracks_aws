@@ -37,7 +37,7 @@ def main(args):
     conn = aws_helpers.create_ec2_connection(args.region)
     if args.action == 'create_instances':
         aws_helpers.create_instances(conn, args)
-    if args.action == 'create_image':
+    elif args.action == 'create_image':
         instance = aws_helpers.find_instance(conn, args.instance_id)
         image = aws_helpers.create_image(conn, instance.id, args.image_nametag, args)
     elif args.action == 'terminate_instances':

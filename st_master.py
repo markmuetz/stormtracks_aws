@@ -209,8 +209,6 @@ def execute_fabric_commands(args, host, years):
     process_log = setup_logging(name='st_master'.format(host),
                                 filename='logs/st_master_{0}.log'.format(host),
                                 use_console=False)
-    process_log.warn('TEMPORARY: deleting 2003')
-    execute(fabfile.delete_2003, host=host)
 
     process_log.info('Updating stormtracks')
     execute(fabfile.update_stormtracks, host=host)

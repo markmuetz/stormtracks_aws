@@ -14,6 +14,7 @@ import multiprocessing as mp
 
 from fabric.api import execute, env
 from fabric.network import disconnect_all
+import commandify as cmdify
 
 import fabfile
 import aws_helpers
@@ -26,46 +27,45 @@ if __name__ == '__main__':
     log = setup_logging(name='st_master', filename='logs/st_master.log')
 
 
+@cmdify.main_command
 def main(args):
-    """
-    Entry point: dispatches to function based on `args.action`.
-    """
-    log.info('Action: {0}'.format(args.action))
-
-    env.user = "ubuntu"
-    env.key_filename = ["aws_credentials/st_worker1.pem"]
-    conn = aws_helpers.create_ec2_connection(args.region)
-    if args.action == 'create_instances':
-        aws_helpers.create_instances(conn, args)
-    elif args.action == 'create_image':
-        instance = aws_helpers.find_instance(conn, args.instance_id)
-        image = aws_helpers.create_image(conn, instance.id, args.image_nametag, args)
-    elif args.action == 'terminate_instances':
-        aws_helpers.terminate_instances(conn, args)
-    elif args.action == 'list_instances':
-        aws_helpers.list_instances(conn, args)
-    elif args.action == 'st_status':
-        st_status(conn, args)
-    elif args.action == 'attach_mount':
-        attach_mount(conn, args)
-    elif args.action == 'setup_st_worker_image':
-        setup_st_worker_image(conn, args)
-    elif args.action == 'find_instance':
-        aws_helpers.find_instance(conn, args.instance_id)
-    elif args.action == 'run_analysis':
-        run_analysis(conn, args)
-    elif args.action == 'execute_fabric_commands':
-        instance = aws_helpers.find_instance(conn, args.instance_id)
-        host = instance.ip_address
-        execute_fabric_commands(args, host)
-    elif args.action == 'st_worker_status_monitor':
-        instance = aws_helpers.find_instance(conn, args.instance_id)
-        host = instance.ip_address
-        st_worker_status_monitor(log, args, host)
-    else:
-        raise aws_helpers.AwsInteractionError('Unkown action: {0}'.format(args.action))
+    pass
 
 
+@cmdify.command
+def create_instances(conn, args):
+    aws_helpers.create_instances(conn, args)
+
+
+@cmdify.command
+def create_image(conn, args):
+    instance = aws_helpers.find_instance(conn, args.instance_id)
+    image = aws_helpers.create_image(conn, instance.id, args.image_nametag, args)
+
+
+@cmdify.command
+def list_instances(conn, args):
+    aws_helpers.list_instances(conn, args)
+
+
+@cmdify.command
+def terminate_instances(conn, args):
+    aws_helpers.terminate_instances(conn, args)
+
+
+@cmdify.command
+def find_instance(conn, args):
+    aws_helpers.find_instance(conn, args.instance_id)
+
+
+@cmdify.command
+def run_fabric_commands(conn, args):
+    instance = aws_helpers.find_instance(conn, args.instance_id)
+    host = instance.ip_address
+    execute_fabric_commands(args, host)
+
+
+@cmdify.command
 def setup_st_worker_image(conn, args):
     """
     Either creates an image from scratch, starting with a blank Ubuntu image
@@ -108,6 +108,7 @@ def setup_st_worker_image(conn, args):
     log.info("Success! Run 'python aws_interaction.py run_analysis'")
 
 
+@cmdify.command
 def match_instances_to_years(instances, years):
     min_years_per_instance = len(years) // len(instances)
     extra_years = len(years) - len(instances) * min_years_per_instance
@@ -128,6 +129,7 @@ def match_instances_to_years(instances, years):
     return instance_to_years_map
 
 
+@cmdify.command
 def run_analysis(conn, args):
     """
     Runs a full analysis.
@@ -227,6 +229,7 @@ def execute_fabric_commands(args, host, years):
     execute(fabfile.retrieve_logs, host=host)
 
 
+# @cmdify.command
 def st_worker_status_monitor(process_log, args, host):
     """
     Monitor the status of an st_worker, looking for when they have finished their analysis.
@@ -243,6 +246,7 @@ def st_worker_status_monitor(process_log, args, host):
     process_log.info('Run full analysis')
 
 
+@cmdify.command
 def st_status(conn, args):
     """
     Gets analysis status of all instances
@@ -254,6 +258,7 @@ def st_status(conn, args):
         execute(analysis_status, wait=True, host=host)
 
 
+@cmdify.command
 def attach_mount(conn, args):
     """
     Experimental: Attaches a specific mount to an instance.
@@ -264,12 +269,11 @@ def attach_mount(conn, args):
     execute(mount_vol, host=instance.ip_address)
 
 
-def parse_args():
-    """
-    Sets up arguments for this command when run from command line.
-    """
-    parser = ArgumentParser()
-    parser.add_argument('action')
+if __name__ == '__main__':
+    conn = aws_helpers.create_ec2_connection('eu-central-1')
+
+    parser = cmdify.CommandifyArgumentParser(provide_args={'conn': conn})
+
     parser.add_argument('--instance-id')
     parser.add_argument('--image-id', default=amis.ST_WORKER_IMAGE_CURRENT)
     parser.add_argument('--image-nametag', default=amis.ST_WORKER_IMAGE_NAMETAG)
@@ -284,18 +288,13 @@ def parse_args():
     parser.add_argument('-a', '--allow-multiple-instances', default=False, action='store_true')
     parser.add_argument('-d', '--dry-run', default=False, action='store_true')
     parser.add_argument('--instance-type', default='t2.medium')
+
+    parser.setup_arguments()
     args = parser.parse_args()
-
-    return parser, args
-
-
-if __name__ == '__main__':
-    parser, args = parse_args()
     try:
-        main(args)
+        parser.dispatch_commands()
     except AwsInteractionError, e:
         log.error(e)
         parser.error(e)
     finally:
-        # Makes sure that fabric always disconnects from EC2 instances.
         disconnect_all()

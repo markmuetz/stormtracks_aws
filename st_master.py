@@ -194,9 +194,15 @@ def run_analysis(conn, args):
 
         log.info('Done')
     finally:
-        log.info('Terminating all instances')
+        pass
+        # Terminating all instances here is not a great idea:
+        # If I press ctrl+c this will execute and kill all remaining instances
+        # which doesn't give me a chance to rescue useful data from them.
+        # log.info('Terminating all instances')
+        # 
         # Make sure this happens whatever!
-        aws_helpers.terminate_instances(conn, args)
+        # aws_helpers.terminate_instances(conn, args)
+
 
     fabfile.notify()
 

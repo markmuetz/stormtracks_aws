@@ -48,7 +48,7 @@ def analyse_year(year):
 
 
 def compress_year_output(year):
-    srm = StormtracksResultsManager('pyro_tracking_analysis')
+    srm = StormtracksResultsManager('aws_tracking_analysis')
     compressed_filename = srm.compress_year(year, delete=True)
     return compressed_filename
 

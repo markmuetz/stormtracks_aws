@@ -129,8 +129,10 @@ def match_instances_to_years(instances, years):
     return instance_to_years_map
 
 
-@cmdify.command
-def run_analysis(conn, args):
+@cmdify.command(start_year={'flag': '-s'}, 
+                end_year={'flag': '-e'},
+                create_new_instances={'flag': '-d'})
+def run_analysis(conn, args, create_new_instances=True, start_year=2005, end_year=2005):
     """
     Runs a full analysis.
     Creates EC2 instances as necessary, allows them time to start up. Then executes
@@ -138,26 +140,32 @@ def run_analysis(conn, args):
     monitoring their progress. Once they have finished, terminate all running instances.
     """
     try:
+        print(create_new_instances)
         log.info('Running analysis: {0}-{1}'.format(args.start_year, args.end_year))
         if not args.allow_multiple_instances and args.num_instances != 1:
             raise AwsInteractionError('Should only be one instance for run_analysis')
 
-        log.info('Creating instance from image')
-        images = conn.get_all_images(filters={'tag:name': args.image_nametag})
-        if len(images) != 1:
-            raise AwsInteractionError('Should be exactly one image')
-        image = images[0]
+        if create_new_instances:
+            log.info('Creating instance from image')
+            images = conn.get_all_images(filters={'tag:name': args.image_nametag})
+            if len(images) != 1:
+                raise AwsInteractionError('Should be exactly one image')
+            image = images[0]
 
-        args.image_id = image.id
+            args.image_id = image.id
 
-        instances = aws_helpers.create_instances(conn, args)
+            instances = aws_helpers.create_instances(conn, args)
 
-        if len(instances) != args.num_instances:
-            raise AwsInteractionError('Should have created exactly {0} instance(s) for run_analysis\n'
-                                      'Created {1}'.format(args.num_instances, len(instances)))
-
-        log.info('Sleeping for 60s to allow instance(s) to get ready')
-        sleep(60)
+            if len(instances) != args.num_instances:
+                raise AwsInteractionError('Should have created exactly {0} instance(s) for run_analysis\n'
+                                          'Created {1}'.format(args.num_instances, len(instances)))
+            log.info('Sleeping for 60s to allow instance(s) to get ready')
+            sleep(60)
+        else:
+            log.info('Using existing instances')
+            key = "tag:{0}".format(args.tag)
+            instances = aws_helpers.get_instances(conn, filters={key: args.tag_value}, running=True)
+            log.info('Using instance(s): {0}'.format(', '.join([i.id for i in instances])))
 
         years = range(args.start_year, args.end_year + 1)
         instance_to_years_map = match_instances_to_years(instances, years)
@@ -196,9 +204,13 @@ def run_analysis(conn, args):
 
         log.info('Done')
     finally:
-        log.info('Terminating all instances')
+        pass
+        # log.info('Terminating all instances')
+        # If user presses ctrl+c this will be executed, and 
+        # I don't want all instances to be terminated if something went wrong!
+        # Trust above instance.terminate() to do its job.
         # Make sure this happens whatever!
-        aws_helpers.terminate_instances(conn, args)
+        # aws_helpers.terminate_instances(conn, args)
 
     fabfile.notify()
 
@@ -269,7 +281,10 @@ def attach_mount(conn, args):
     execute(mount_vol, host=instance.ip_address)
 
 
-if __name__ == '__main__':
+def main():
+    env.user = "ubuntu"
+    env.key_filename = ["aws_credentials/st_worker1.pem"]
+
     conn = aws_helpers.create_ec2_connection('eu-central-1')
 
     parser = cmdify.CommandifyArgumentParser(provide_args={'conn': conn})
@@ -281,8 +296,6 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--num-instances', type=int, default=1)
     parser.add_argument('-t', '--tag', default='group')
     parser.add_argument('-v', '--tag-value', default='st_worker')
-    parser.add_argument('-s', '--start-year', type=int, default=2005)
-    parser.add_argument('-e', '--end-year', type=int, default=2005)
     parser.add_argument('-n', '--num-ensemble-members', type=int, default=56)
     parser.add_argument('-r', '--region', default='eu-central-1')
     parser.add_argument('-a', '--allow-multiple-instances', default=False, action='store_true')
@@ -291,6 +304,7 @@ if __name__ == '__main__':
 
     parser.setup_arguments()
     args = parser.parse_args()
+    print(args)
     try:
         parser.dispatch_commands()
     except AwsInteractionError, e:
@@ -298,3 +312,7 @@ if __name__ == '__main__':
         parser.error(e)
     finally:
         disconnect_all()
+
+
+if __name__ == '__main__':
+    main()

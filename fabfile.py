@@ -77,6 +77,7 @@ def st_worker_run(years):
     Configures worker to run with given years by copying settings then starting worker.
     Uses settings template to say which years to run analysis on.
     """
+    print(years)
     get_system_state()
     upload_template('st_worker_files/st_worker_settings.tpl.py',
                     'Projects/stormtracks_aws/st_worker_files/st_worker_settings.py',
@@ -148,7 +149,7 @@ def install_stormtracks():
     Includes all deps for building all Python packages (e.g. NetCDF4, scipy).
     """
     # OS level installs.
-    sudo('apt-get install -y git build-essential libhdf5-dev libgeos-dev libproj-dev'
+    sudo('apt-get install -y git build-essential libhdf5-dev libgeos-dev libproj-dev '
          'libfreetype6-dev python-dev libblas-dev liblapack-dev gfortran libnetcdf-dev')
     sudo('apt-get install -y python-pip')
     sudo('pip install virtualenv')
@@ -170,7 +171,7 @@ def install_stormtracks():
         # Use virtualenv to install python deps.
         with prefix('source stormtracks/st_env/bin/activate'):
             run('pip install -r stormtracks/requirements_a.txt')
-            run('pip install -r stormtracks/requirements_b.txt'
+            run('pip install -r stormtracks/requirements_b.txt '
                 '--allow-external basemap --allow-unverified basemap')
             run('pip install -e stormtracks')
             run('pip install -r stormtracks_aws/requirements.txt')
@@ -211,6 +212,7 @@ def install_supervisor(update=False):
 def file_exists(filename):
     with quiet():
         have_build_dir = run("test -e {0}".format(filename)).succeeded
+        print(have_build_dir)
         return have_build_dir
 
 
@@ -245,6 +247,12 @@ def monitor_directory_space(path='stormtracks_data/data/', poll_time=10):
                       format(env.host, (delta_size / elapsed_time) / 2**10, size / 2**10))
             sleep(poll_time)
     return sse, size
+
+
+@task
+@parallel
+def put_mem_usage():
+    put('st_worker_files/mem_usage.sh', 'mem_usage.sh', mode=0755)
 
 
 @task

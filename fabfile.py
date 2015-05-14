@@ -72,6 +72,11 @@ def get_system_state():
 
 
 @task
+def st_worker_run_between(start_year, end_year):
+    st_worker_run(range(int(start_year), int(end_year) + 1))
+
+
+@task
 def st_worker_run(years):
     """
     Configures worker to run with given years by copying settings then starting worker.

@@ -117,6 +117,8 @@ def retrieve_logs():
         'logs/remote/download_{0}.log'.format(env.host))
     get('/home/ubuntu/Projects/stormtracks_aws/logs/system_state.txt',
         'logs/remote/system_state_{0}.txt'.format(env.host))
+    get('/home/ubuntu/stormtracks_data/logs/mem_usage.log',
+        'logs/remote/mem_usage_{0}.log'.format(env.host))
 
 
 @task

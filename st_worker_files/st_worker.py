@@ -63,7 +63,6 @@ def delete_year_data(year):
 def main():
     for year in YEARS:
         try:
-            pr = cProfile.Profile()
             log.info('downloading year data {0}'.format(year))
             download_year_data(year)
             log.info('analysing year {0}'.format(year))

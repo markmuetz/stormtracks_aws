@@ -40,7 +40,7 @@ def logging_callback(msg):
 
 
 def analyse_year(year):
-    sa = analysis.StormtracksAnalysis(year)
+    sa = analysis.StormtracksAnalysis(year, profiling=True)
     sa.logging_callback = logging_callback
     config = sa.analysis_config_options[5]
     sa.run_full_analysis(config, 56)
@@ -62,16 +62,22 @@ def delete_year_data(year):
 
 def main():
     for year in YEARS:
-        log.info('downloading year data {0}'.format(year))
-        download_year_data(year)
-        log.info('analysing year {0}'.format(year))
-        analyse_year(year)
-        log.info('compressing year output {0}'.format(year))
-        compressed_filename = compress_year_output(year)
-        log.info('uploading year to s3 {0}'.format(year))
-        upload_year_s3(compressed_filename)
-        log.info('deleting year data {0}'.format(year))
-        delete_year_data(year)
+        try:
+            pr = cProfile.Profile()
+            log.info('downloading year data {0}'.format(year))
+            download_year_data(year)
+            log.info('analysing year {0}'.format(year))
+            analyse_year(year)
+            log.info('compressing year output {0}'.format(year))
+            compressed_filename = compress_year_output(year)
+            log.info('uploading year to s3 {0}'.format(year))
+            upload_year_s3(compressed_filename)
+            log.info('deleting year data {0}'.format(year))
+            delete_year_data(year)
+        except e:
+            log.error(e)
+            log.error('Error with year'.format(year))
+            raise e
 
     log.info('analysed years {0}-{1}'.format(YEARS[0], YEARS[-1]))
 

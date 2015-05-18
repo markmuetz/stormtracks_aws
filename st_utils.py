@@ -12,10 +12,11 @@ def setup_logging(name, filename, mode='a', use_console=True):
     else:
         formatter = logging.Formatter('%(asctime)s %(name)-16s %(levelname)-8s %(message)s')
 
-    fileHandler = logging.FileHandler(filename, mode=mode)
-    fileHandler.setFormatter(formatter)
-    log.setLevel(logging.DEBUG)
-    log.addHandler(fileHandler)
+    if filename is not None:
+        fileHandler = logging.FileHandler(filename, mode=mode)
+        fileHandler.setFormatter(formatter)
+        log.setLevel(logging.DEBUG)
+        log.addHandler(fileHandler)
 
     if use_console:
         streamFormatter = logging.Formatter('%(message)s')

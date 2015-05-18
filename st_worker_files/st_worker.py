@@ -74,7 +74,7 @@ def main():
             upload_year_s3(compressed_filename)
             log.info('deleting year data {0}'.format(year))
             delete_year_data(year)
-        except e:
+        except Exception as e:
             log.error(e)
             log.error('Error with year'.format(year))
             raise e

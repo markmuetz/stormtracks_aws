@@ -134,7 +134,8 @@ def match_instances_to_years(instances, years):
 @cmdify.command(start_year={'flag': '-s'}, 
                 end_year={'flag': '-e'},
                 create_new_instances={'flag': '-d'})
-def run_analysis(conn, args, create_new_instances=True, start_year=2005, end_year=2005):
+def run_analysis(conn, args, create_new_instances=True, start_year=2005, end_year=2005,
+                 terminate=True):
     """
     Runs a full analysis.
     Creates EC2 instances as necessary, allows them time to start up. Then executes
@@ -197,8 +198,10 @@ def run_analysis(conn, args, create_new_instances=True, start_year=2005, end_yea
             for instance_proc in finished_instance_procs:
                 instance_procs.remove(instance_proc)
                 instance, proc = instance_proc
-                # Don't need to monitor to make sure it's finished.
-                instance.terminate()
+                if terminate:
+                    # Don't need to monitor to make sure it's finished.
+                    print('Terminating instance {0}'.format(instance.id))
+                    instance.terminate()
 
             if instance_procs:
                 sleep(10)

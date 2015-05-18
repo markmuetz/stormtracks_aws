@@ -43,8 +43,7 @@ def analyse_year(year):
     sa = analysis.StormtracksAnalysis(year)
     sa.logging_callback = logging_callback
     config = sa.analysis_config_options[5]
-    sa.run_full_tracking_matching_analysis(config, 56)
-    sa.run_full_field_collection(0, 56)
+    sa.run_full_analysis(config, 56)
 
 
 def compress_year_output(year):

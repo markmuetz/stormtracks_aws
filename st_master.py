@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
 """
 Main executable for interacting with st_workers.
 Should be run on local (master or command) computer.
@@ -12,6 +13,7 @@ from time import sleep
 from argparse import ArgumentParser
 import multiprocessing as mp
 
+import argcomplete
 from fabric.api import execute, env
 from fabric.network import disconnect_all
 import commandify as cmdify
@@ -140,7 +142,6 @@ def run_analysis(conn, args, create_new_instances=True, start_year=2005, end_yea
     monitoring their progress. Once they have finished, terminate all running instances.
     """
     try:
-        print(create_new_instances)
         log.info('Running analysis: {0}-{1}'.format(args.start_year, args.end_year))
         if not args.allow_multiple_instances and args.num_instances != 1:
             raise AwsInteractionError('Should only be one instance for run_analysis')
@@ -287,7 +288,8 @@ def main():
 
     conn = aws_helpers.create_ec2_connection('eu-central-1')
 
-    parser = cmdify.CommandifyArgumentParser(provide_args={'conn': conn})
+    parser = cmdify.CommandifyArgumentParser(provide_args={'conn': conn},
+                                             suppress_warnings=['default_true'])
 
     parser.add_argument('--instance-id')
     parser.add_argument('--image-id', default=amis.ST_WORKER_IMAGE_CURRENT)
@@ -303,8 +305,8 @@ def main():
     parser.add_argument('--instance-type', default='t2.medium')
 
     parser.setup_arguments()
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
-    print(args)
     try:
         parser.dispatch_commands()
     except AwsInteractionError, e:

@@ -107,18 +107,13 @@ def st_worker_status():
 
 @task
 def retrieve_logs():
-    if not os.path.exists('logs/remote'):
-        os.makedirs('logs/remote')
-    get('/home/ubuntu/stormtracks_data/logs/st_worker_status.log',
-        'logs/remote/st_worker_status_{0}.log'.format(env.host))
-    get('/home/ubuntu/stormtracks_data/logs/analysis.log',
-        'logs/remote/analysis_{0}.log'.format(env.host))
-    get('/home/ubuntu/stormtracks_data/logs/download.log',
-        'logs/remote/download_{0}.log'.format(env.host))
+    if not os.path.exists('logs/remote/{0}'.format(env.host)):
+        os.makedirs('logs/remote/{0}'.format(env.host))
+
     get('/home/ubuntu/Projects/stormtracks_aws/logs/system_state.txt',
-        'logs/remote/system_state_{0}.txt'.format(env.host))
-    get('/home/ubuntu/stormtracks_data/logs/mem_usage.log',
-        'logs/remote/mem_usage_{0}.log'.format(env.host))
+        'logs/remote/{0}/'.format(env.host))
+    get('/home/ubuntu/stormtracks_data/logs/',
+        'logs/remote/{0}/'.format(env.host))
 
 
 @task

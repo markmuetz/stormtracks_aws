@@ -46,6 +46,12 @@ def analyse_year(year):
     sa.run_full_analysis(config, 56)
 
 
+def cross_ensemble_analyse_year(year):
+    sa = analysis.StormtracksAnalysis(year, profiling=True)
+    sa.logging_callback = logging_callback
+    sa.run_cross_ensemble_analysis()
+
+
 def compress_year_output(year):
     srm = StormtracksResultsManager('aws_tracking_analysis')
     compressed_filename = srm.compress_year(year, delete=True)
@@ -65,8 +71,9 @@ def main():
         try:
             log.info('downloading year data {0}'.format(year))
             download_year_data(year)
-            log.info('analysing year {0}'.format(year))
-            analyse_year(year)
+            log.info('cross ensemble analysing year {0}'.format(year))
+            # analyse_year(year)
+            cross_ensemble_analyse_year(year)
             log.info('compressing year output {0}'.format(year))
             compressed_filename = compress_year_output(year)
             log.info('uploading year to s3 {0}'.format(year))

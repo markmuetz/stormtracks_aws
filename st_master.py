@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
 
 @cmdify.main_command
-def main(args):
+def main_command(args):
     pass
 
 

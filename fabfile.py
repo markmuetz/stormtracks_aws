@@ -211,11 +211,16 @@ def install_supervisor(update=False):
 
 
 @task
+def log_exists():
+    return file_exists('/home/ubuntu/stormtracks_data/logs/st_worker_status.log')
+
+
+@task
 def file_exists(filename):
     with quiet():
-        have_build_dir = run("test -e {0}".format(filename)).succeeded
-        print(have_build_dir)
-        return have_build_dir
+        does_file_exist = run("test -e {0}".format(filename)).succeeded
+        print(does_file_exist)
+        return does_file_exist
 
 
 @task

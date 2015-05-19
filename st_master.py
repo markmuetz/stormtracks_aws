@@ -235,10 +235,10 @@ def execute_fabric_commands(args, host, years):
     process_log.info('Starting anaysis')
     execute(fabfile.st_worker_run, years=years, host=host)
 
-    process_log.info('Sleeping for 20s to allow creation of logfile')
+    while not execute(fabfile.log_exists, host=host):
+        process_log.info('Sleeping for 10s to allow creation of logfile')
+        sleep(10)
 
-    # TODO: Poll for file creation.
-    sleep(20)
     st_worker_status_monitor(process_log, args, host)
 
     process_log.info('Retrieving logs')

@@ -254,16 +254,22 @@ def st_worker_status_monitor(process_log, args, host):
     process_log.info(status)
     minutes = 0
     while status[:14] != 'analysed years':
-        supervisor_status_str = execute(fabfile.supervisorctl, 
-                                        cmd='status', program='st_worker_run', host=host)[host]
-        name, supervisor_status =  supervisor_status_str.split()
-        if supervisor_status != 'RUNNING':
-            process_log.error('st_worker_run no longer running: {0}'.format(supervisor_status))
+        try:
+            supervisor_status_str = execute(fabfile.supervisorctl, 
+                                            cmd='status', program='st_worker_run', host=host)[host]
+            name, supervisor_status =  supervisor_status_str.split()[:2]
+            if supervisor_status != 'RUNNING':
+                process_log.error('st_worker_run no longer running: {0}'.format(supervisor_status))
+                fabfile.beep()
+        except Exception as e:
+            process_log.error('Problem running supervisorctl'.format(e))
             fabfile.beep()
+            raise e
+
         process_log.info('{0}: {1}, waited for {2}m'.format(host, status, minutes))
-        minutes += 1
-        sleep(60)
-        status = execute(fabfile.st_worker_status, host=host)
+        minutes += 0.25
+        sleep(15)
+        status = execute(fabfile.st_worker_status, host=host)[host]
 
     process_log.info('Run full analysis')
 

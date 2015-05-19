@@ -250,11 +250,17 @@ def st_worker_status_monitor(process_log, args, host):
     """
     Monitor the status of an st_worker, looking for when they have finished their analysis.
     """
-    status = execute(fabfile.st_worker_status, host=host)
-    process_log.info(status[host])
+    status = execute(fabfile.st_worker_status, host=host)[host]
+    process_log.info(status)
     minutes = 0
-    while status[host][:14] != 'analysed years':
-        process_log.info('{0}: {1}, waited for {2}m'.format(host, status[host], minutes))
+    while status[:14] != 'analysed years':
+        supervisor_status_str = execute(fabfile.supervisorctl, 
+                                        cmd='status', program='st_worker_run', host=host)[host]
+        name, supervisor_status =  supervisor_status_str.split()
+        if supervisor_status != 'RUNNING':
+            process_log.error('st_worker_run no longer running: {0}'.format(supervisor_status))
+            fabfile.beep()
+        process_log.info('{0}: {1}, waited for {2}m'.format(host, status, minutes))
         minutes += 1
         sleep(60)
         status = execute(fabfile.st_worker_status, host=host)

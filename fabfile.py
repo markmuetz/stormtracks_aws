@@ -219,7 +219,6 @@ def log_exists():
 def file_exists(filename):
     with quiet():
         does_file_exist = run("test -e {0}".format(filename)).succeeded
-        print(does_file_exist)
         return does_file_exist
 
 

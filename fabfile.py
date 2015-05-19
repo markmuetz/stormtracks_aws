@@ -224,7 +224,7 @@ def file_exists(filename):
 
 @task
 def supervisorctl(cmd, program):
-    sudo('supervisorctl {0} {1}'.format(cmd, program))
+    return sudo('supervisorctl {0} {1}'.format(cmd, program))
 
 
 @task

@@ -235,7 +235,7 @@ def execute_fabric_commands(args, host, years):
     process_log.info('Starting anaysis')
     execute(fabfile.st_worker_run, years=years, host=host)
 
-    while not execute(fabfile.log_exists, host=host):
+    while not execute(fabfile.log_exists, host=host)[host]:
         process_log.info('Sleeping for 10s to allow creation of logfile')
         sleep(10)
 

@@ -85,7 +85,7 @@ def main():
         try:
             proc = mp.Process(name='run_for_year', target=run_for_year,
                               kwargs={'year': year})
-            log.info('Executing fabric commands')
+            log.info('Starting child process')
             proc.start()
             proc.join()
         except Exception as e:

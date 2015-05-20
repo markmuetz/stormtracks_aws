@@ -12,7 +12,6 @@ actions are logged to st_worker_status.log, which allows for (very simple) remot
 import sys
 sys.path.append('/home/ubuntu/Projects/stormtracks_aws')
 import os
-import logging
 
 from stormtracks.load_settings import settings
 from stormtracks import download, analysis

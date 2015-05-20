@@ -10,7 +10,8 @@ def setup_logging(name, filename, mode='a', use_console=True):
     if name == 'st_worker_status':
         formatter = logging.Formatter('%(message)s')
     else:
-        formatter = logging.Formatter('%(asctime)s %(name)-16s %(levelname)-8s %(message)s')
+        formatter = logging.Formatter('%(asctime)s %(name)-16s %(levelname)-8s %(message)s',
+                                      "%Y-%m-%d %H:%M:%S.%f")
 
     if filename is not None:
         fileHandler = logging.FileHandler(filename, mode=mode)

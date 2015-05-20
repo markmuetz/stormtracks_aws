@@ -135,91 +135,84 @@ def match_instances_to_years(instances, years):
                 end_year={'flag': '-e'},
                 create_new_instances={'flag': '-d'})
 def run_analysis(conn, args, create_new_instances=True, start_year=2005, end_year=2005,
-                 terminate=True):
+                 terminate=True, monitor=True):
     """
     Runs a full analysis.
     Creates EC2 instances as necessary, allows them time to start up. Then executes
     remote commands on them, getting them to download then analyse the given years,
     monitoring their progress. Once they have finished, terminate all running instances.
     """
-    try:
-        log.info('Running analysis: {0}-{1}'.format(args.start_year, args.end_year))
-        if not args.allow_multiple_instances and args.num_instances != 1:
-            raise AwsInteractionError('Should only be one instance for run_analysis')
+    log.info('Running analysis: {0}-{1}'.format(args.start_year, args.end_year))
+    if not args.allow_multiple_instances and args.num_instances != 1:
+        raise AwsInteractionError('Should only be one instance for run_analysis')
 
-        if create_new_instances:
-            log.info('Creating instance from image')
-            images = conn.get_all_images(filters={'tag:name': args.image_nametag})
-            if len(images) != 1:
-                raise AwsInteractionError('Should be exactly one image')
-            image = images[0]
+    if create_new_instances:
+        log.info('Creating instance from image')
+        images = conn.get_all_images(filters={'tag:name': args.image_nametag})
+        if len(images) != 1:
+            raise AwsInteractionError('Should be exactly one image')
+        image = images[0]
 
-            args.image_id = image.id
+        args.image_id = image.id
 
-            instances = aws_helpers.create_instances(conn, args)
+        instances = aws_helpers.create_instances(conn, args)
 
-            if len(instances) != args.num_instances:
-                raise AwsInteractionError('Should have created exactly {0} instance(s) for run_analysis\n'
-                                          'Created {1}'.format(args.num_instances, len(instances)))
-            log.info('Sleeping for 60s to allow instance(s) to get ready')
-            sleep(60)
-        else:
-            log.info('Using existing instances')
-            key = "tag:{0}".format(args.tag)
-            instances = aws_helpers.get_instances(conn, filters={key: args.tag_value}, running=True)
-            log.info('Using instance(s): {0}'.format(', '.join([i.id for i in instances])))
+        if len(instances) != args.num_instances:
+            raise AwsInteractionError('Should have created exactly {0} instance(s) for run_analysis\n'
+                                      'Created {1}'.format(args.num_instances, len(instances)))
+        log.info('Sleeping for 60s to allow instance(s) to get ready')
+        sleep(60)
+    else:
+        log.info('Using existing instances')
+        key = "tag:{0}".format(args.tag)
+        instances = aws_helpers.get_instances(conn, filters={key: args.tag_value}, running=True)
+        log.info('Using instance(s): {0}'.format(', '.join([i.id for i in instances])))
 
-        years = range(args.start_year, args.end_year + 1)
-        instance_to_years_map = match_instances_to_years(instances, years)
-        log.debug(instance_to_years_map)
+    years = range(args.start_year, args.end_year + 1)
+    instance_to_years_map = match_instances_to_years(instances, years)
+    log.debug(instance_to_years_map)
 
-        instance_procs = []
-        for instance in instances:
-            host = instance.ip_address
-            log.info('Running on host:{0}, instance_id: {1}'.format(host, instance.id))
+    instance_procs = []
+    for instance in instances:
+        host = instance.ip_address
+        log.info('Running on host:{0}, instance_id: {1}'.format(host, instance.id))
 
-            proc = mp.Process(name=host, target=execute_fabric_commands,
-                              kwargs={
-                                  'args': args,
-                                  'host': host,
-                                  'years': instance_to_years_map[instance]})
-            instance_procs.append((instance, proc))
+        proc = mp.Process(name=host, target=execute_fabric_commands,
+                          kwargs={
+                              'args': args,
+                              'host': host,
+                              'years': instance_to_years_map[instance],
+                              'monitor': monitor})
+        instance_procs.append((instance, proc))
 
-            log.info('Executing fabric commands')
-            proc.start()
+        log.info('Executing fabric commands')
+        proc.start()
 
-        while instance_procs:
-            finished_instance_procs = []
-            for instance, proc in instance_procs:
-                proc.join(timeout=0.01)
-                if not proc.is_alive():
-                    log.info("proc {0} finished".format(proc))
-                    finished_instance_procs.append((instance, proc))
-            for instance_proc in finished_instance_procs:
-                instance_procs.remove(instance_proc)
-                instance, proc = instance_proc
-                if terminate:
-                    # Don't need to monitor to make sure it's finished.
-                    print('Terminating instance {0}'.format(instance.id))
-                    instance.terminate()
+    while instance_procs:
+        finished_instance_procs = []
+        for instance, proc in instance_procs:
+            proc.join(timeout=0.01)
+            if not proc.is_alive():
+                log.info("proc {0} finished".format(proc))
+                finished_instance_procs.append((instance, proc))
+        for instance_proc in finished_instance_procs:
+            instance_procs.remove(instance_proc)
+            instance, proc = instance_proc
+            if monitor and terminate:
+                # Don't need to monitor to make sure it's finished.
+                print('Terminating instance {0}'.format(instance.id))
+                instance.terminate()
 
-            if instance_procs:
-                sleep(10)
+        if instance_procs:
+            sleep(10)
 
-        log.info('Done')
-    finally:
-        pass
-        # log.info('Terminating all instances')
-        # If user presses ctrl+c this will be executed, and 
-        # I don't want all instances to be terminated if something went wrong!
-        # Trust above instance.terminate() to do its job.
-        # Make sure this happens whatever!
-        # aws_helpers.terminate_instances(conn, args)
+    log.info('Done')
 
-    fabfile.notify()
+    if monitor:
+        fabfile.notify()
 
 
-def execute_fabric_commands(args, host, years):
+def execute_fabric_commands(args, host, years, monitor):
     """
     Executes remote functions to run analysis on a given year for a given host.
     Monitors their output to see when they are finished (blocking).
@@ -238,11 +231,14 @@ def execute_fabric_commands(args, host, years):
     while not execute(fabfile.log_exists, host=host)[host]:
         process_log.info('Sleeping for 10s to allow creation of logfile')
         sleep(10)
+    process_log.info('Logfile created')
 
-    st_worker_status_monitor(process_log, args, host)
+    if monitor:
+        # Blocks until finished.
+        st_worker_status_monitor(process_log, args, host)
 
-    process_log.info('Retrieving logs')
-    execute(fabfile.retrieve_logs, host=host)
+        process_log.info('Retrieving logs')
+        execute(fabfile.retrieve_logs, host=host)
 
 
 # @cmdify.command
@@ -267,8 +263,8 @@ def st_worker_status_monitor(process_log, args, host):
             raise e
 
         process_log.info('{0}: {1}, waited for {2}m'.format(host, status, minutes))
-        minutes += 0.25
-        sleep(15)
+        minutes += 1
+        sleep(60)
         status = execute(fabfile.st_worker_status, host=host)[host]
 
     process_log.info('Run full analysis')

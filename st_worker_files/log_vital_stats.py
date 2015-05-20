@@ -24,7 +24,7 @@ def get_sys_used_free_mem():
 
 def main(filename='/home/ubuntu/stormtracks_data/logs/vital_stats.log'):
     with open(filename, 'a') as f:
-        f.write('date,st_worker_mem_usage,used,free\n')
+        f.write('date,st_worker_mem_usage(%),used(Mb),free(Mb)\n')
         while True:
             date = dt.datetime.strftime(dt.datetime.now(), "%Y-%m-%d %H:%M:%S.%f")
             mem_usage_percent = get_percent_mem_used()

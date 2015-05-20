@@ -233,6 +233,10 @@ def execute_fabric_commands(args, host, years, monitor):
         sleep(10)
     process_log.info('Logfile created')
 
+    # Must be done after st_worker has started running.
+    process_log.info('Logging mem usage')
+    execute(fabfile.log_vital_stats, host=host)
+
     if monitor:
         # Blocks until finished.
         st_worker_status_monitor(process_log, args, host)

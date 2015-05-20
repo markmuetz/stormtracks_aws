@@ -77,6 +77,10 @@ def st_worker_run_between(start_year, end_year):
 
 
 @task
+def log_vital_stats(years):
+    sudo('supervisorctl start log_vital_stats')
+
+@task
 def st_worker_run(years):
     """
     Configures worker to run with given years by copying settings then starting worker.

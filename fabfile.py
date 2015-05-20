@@ -77,7 +77,7 @@ def st_worker_run_between(start_year, end_year):
 
 
 @task
-def log_vital_stats(years):
+def log_vital_stats():
     sudo('supervisorctl start log_vital_stats')
 
 @task

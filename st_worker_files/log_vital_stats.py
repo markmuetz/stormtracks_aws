@@ -6,7 +6,22 @@ import datetime as dt
 
 def get_percent_mem_used(prog='st_worker'):
     cmd1 = 'pgrep {0}'.format(prog)
-    pidno = check_output(cmd1, shell=True)
+    pidnos = check_output(cmd1, shell=True).split()
+    if len(pidnos) == 0:
+        raise Exception('no pidno for {0} found'.format(prog))
+    elif len(pidnos) == 1:
+        pidno = pidnos
+    else:
+        # Find which is child:
+        for pidno in pidnos:
+            cmd1 = 'pgrep {0} -P {1}'.format(prog, pidno)
+            try:
+                pidno = check_output(cmd1, shell=True).split()
+                if pidno.split():
+                    break
+            except:
+                pass
+
     cmd2 = "top -bn1 -p {0}".format(pidno.strip())
     top_out = check_output(cmd2, shell=True)
     top_lines = top_out.split('\n')

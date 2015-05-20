@@ -59,5 +59,4 @@ def main(filename='/home/ubuntu/stormtracks_data/logs/vital_stats.log'):
 
 
 if __name__ == '__main__':
-    # main()
-    print(get_df())
+    main()

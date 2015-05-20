@@ -12,6 +12,7 @@ actions are logged to st_worker_status.log, which allows for (very simple) remot
 import sys
 sys.path.append('/home/ubuntu/Projects/stormtracks_aws')
 import os
+import multiprocessing as mp
 
 from stormtracks.load_settings import settings
 from stormtracks import download, analysis
@@ -65,20 +66,28 @@ def delete_year_data(year):
     download.delete_full_c20(year)
 
 
+def run_for_year(year):
+    log.info('downloading year data {0}'.format(year))
+    download_year_data(year)
+    log.info('cross ensemble analysing year {0}'.format(year))
+    # analyse_year(year)
+    cross_ensemble_analyse_year(year)
+    log.info('compressing year output {0}'.format(year))
+    compressed_filename = compress_year_output(year)
+    log.info('uploading year to s3 {0}'.format(year))
+    upload_year_s3(compressed_filename)
+    log.info('deleting year data {0}'.format(year))
+    delete_year_data(year)
+
+
 def main():
     for year in YEARS:
         try:
-            log.info('downloading year data {0}'.format(year))
-            download_year_data(year)
-            log.info('cross ensemble analysing year {0}'.format(year))
-            # analyse_year(year)
-            cross_ensemble_analyse_year(year)
-            log.info('compressing year output {0}'.format(year))
-            compressed_filename = compress_year_output(year)
-            log.info('uploading year to s3 {0}'.format(year))
-            upload_year_s3(compressed_filename)
-            log.info('deleting year data {0}'.format(year))
-            delete_year_data(year)
+            proc = mp.Process(name='run_for_year', target=run_for_year,
+                              kwargs={'year': year})
+            log.info('Executing fabric commands')
+            proc.start()
+            proc.join()
         except Exception as e:
             log.error(e)
             log.error('Error with year'.format(year))

@@ -4,6 +4,14 @@ from time import sleep
 import datetime as dt
 
 
+def get_df():
+    cmd = "df -h"
+    df_out = check_output(cmd, shell=True)
+    df_lines = df_out.split('\n')
+    df_percent = float(df_lines[1].split()[4][:-1])
+    return df_percent
+
+
 def get_percent_mem_used(prog='st_worker'):
     cmd1 = 'pgrep {0}'.format(prog)
     pidnos = check_output(cmd1, shell=True).split()
@@ -39,15 +47,17 @@ def get_sys_used_free_mem():
 
 def main(filename='/home/ubuntu/stormtracks_data/logs/vital_stats.log'):
     with open(filename, 'a') as f:
-        f.write('date,st_worker_mem_usage(%),used(Mb),free(Mb)\n')
+        f.write('date,st_worker_mem_usage(%),used(Mb),free(Mb),df(%)\n')
         while True:
             date = dt.datetime.strftime(dt.datetime.now(), "%Y-%m-%d %H:%M:%S.%f")
             mem_usage_percent = get_percent_mem_used()
             used, free = get_sys_used_free_mem()
-            f.write('{0},{1},{2},{3}\n'.format(date, mem_usage_percent, used, free))
+            df = get_df()
+            f.write('{0},{1},{2},{3},{4}\n'.format(date, mem_usage_percent, used, free, df))
             f.flush()
             sleep(10)
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    print(get_df())

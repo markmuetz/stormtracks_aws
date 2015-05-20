@@ -225,6 +225,9 @@ def execute_fabric_commands(args, host, years, monitor):
     execute(fabfile.update_stormtracks, host=host)
     execute(fabfile.update_stormtracks_aws, host=host)
 
+    process_log.info('Updating supervisor')
+    execute(fabfile.install_supervisor, update=True, host=host)
+
     process_log.info('Starting anaysis')
     execute(fabfile.st_worker_run, years=years, host=host)
 

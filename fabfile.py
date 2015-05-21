@@ -29,6 +29,8 @@ from aws_helpers import get_ec2_ip_addresses
 
 REGION = 'eu-central-1'
 
+env.user = "ubuntu"
+env.key_filename = ["aws_credentials/st_worker1.pem"]
 
 @task
 def set_hosts(tag="group", value="st_worker", region=REGION):
@@ -41,8 +43,6 @@ def set_hosts(tag="group", value="st_worker", region=REGION):
     """
     key = "tag:{0}".format(tag)
     env.hosts = get_ec2_ip_addresses(region, key, value)
-    env.user = "ubuntu"
-    env.key_filename = ["aws_credentials/st_worker1.pem"]
 
 
 @task

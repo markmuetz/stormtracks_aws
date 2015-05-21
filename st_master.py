@@ -35,6 +35,11 @@ def main_command(args):
 
 
 @cmdify.command
+def get_all_files(conn, args):
+    aws_helpers.get_all_files()
+
+
+@cmdify.command
 def create_instances(conn, args):
     aws_helpers.create_instances(conn, args)
 

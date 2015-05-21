@@ -8,6 +8,7 @@ Credentials must be placed in file aws_credentials/credentials.csv (rel to .)
 from __future__ import print_function
 
 import os
+import sys
 import csv
 import logging
 import math
@@ -303,6 +304,12 @@ def get_file(key, directory='/home/markmuetz/stormtracks_data/output/prod_releas
                     os.remove(filename)
                 print('Giving up.')
                 break
+        except KeyboardInterrupt:
+            print('KeyboardInterrupt')
+            if os.path.exists(filename):
+                print('DELETING FILE')
+                os.remove(filename)
+            sys.exit(1)
 
 
 def upload_large_file(filename):

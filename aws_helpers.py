@@ -246,13 +246,57 @@ def create_image(conn, instance_id, image_nametag, args):
     return image
 
 
+def create_s3_connection():
+    username, aws_access_key_id, aws_secret_access_key = _get_credentials()
+    conn = boto.connect_s3(aws_access_key_id=aws_access_key_id,
+                           aws_secret_access_key=aws_secret_access_key)
+    return conn
+
+
+def list_files(bucket_name='stormtracks_data'):
+    conn = create_s3_connection()
+    b = conn.get_bucket(bucket_name)
+    for key in b.list():
+        print(key.key)
+
+
+def get_all_files(bucket_name='stormtracks_data', 
+                  directory='/home/markmuetz/stormtracks_data/output/prod_release_1'):
+    conn = create_s3_connection()
+    b = conn.get_bucket(bucket_name)
+    for key in b.list():
+        get_file(key, directory)
+
+
+def get_file_from_name(filename, 
+                       bucket_name='stormtracks_data',
+                       directory='/home/markmuetz/stormtracks_data/output/prod_release_1'):
+    conn = create_s3_connection()
+    b = conn.get_bucket(bucket_name)
+    key = b.get_key(filename)
+    get_file(key, directory)
+
+
+def get_file(key, directory='/home/markmuetz/stormtracks_data/output/prod_release_1'):
+    print('Downloading: {0}'.format(key.key))
+    filename = os.path.join(directory, key.key)
+    if os.path.exists(filename):
+        print('  File exists, skipping')
+    else:
+        try:
+            key.get_contents_to_filename(filename)
+        except Exception as e:
+            print('PROBLEM DOWNLOADING FILE:')
+            print(e)
+            print('DELETING FILE')
+            os.remove(filename)
+
+
 def upload_large_file(filename):
     """
     Uploads a large file to AWS S3.
     """
-    username, aws_access_key_id, aws_secret_access_key = _get_credentials()
-    conn = boto.connect_s3(aws_access_key_id=aws_access_key_id,
-                           aws_secret_access_key=aws_secret_access_key)
+    conn = create_s3_connection()
     b = conn.get_bucket('stormtracks_data')
 
     # Get file info

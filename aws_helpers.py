@@ -278,18 +278,31 @@ def get_file_from_name(filename,
 
 
 def get_file(key, directory='/home/markmuetz/stormtracks_data/output/prod_release_1'):
-    print('Downloading: {0}'.format(key.key))
     filename = os.path.join(directory, key.key)
     if os.path.exists(filename):
-        print('  File exists, skipping')
-    else:
+        print('File {0} exists, skipping'.format(key.key))
+        return
+
+    downloaded = False
+    tries = 0
+    while not downloaded:
+        print('Downloading: {0}'.format(key.key))
+        tries += 1
         try:
             key.get_contents_to_filename(filename)
+            downloaded = True
         except Exception as e:
             print('PROBLEM DOWNLOADING FILE:')
             print(e)
-            print('DELETING FILE')
-            os.remove(filename)
+            if tries <= 3:
+                print('Try again.')
+                continue
+            else:
+                if os.path.exists(filename):
+                    print('DELETING FILE')
+                    os.remove(filename)
+                print('Giving up.')
+                break
 
 
 def upload_large_file(filename):

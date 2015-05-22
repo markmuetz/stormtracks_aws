@@ -205,7 +205,7 @@ def run_analysis(conn, args, create_new_instances=True, start_year=2005, end_yea
             instance, proc = instance_proc
             if monitor and terminate:
                 # Don't need to monitor to make sure it's finished.
-                print('Terminating instance {0}'.format(instance.id))
+                log.info('Terminating instance {0}'.format(instance.id))
                 instance.terminate()
                 fabfile.beep()
 

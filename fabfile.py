@@ -24,6 +24,7 @@ from fabric.api import env, run, cd, settings, sudo, put, execute, task, prefix,
 from fabric.api import parallel, hide
 from fabric.contrib.files import upload_template
 from fabric.context_managers import quiet
+from termcolor import cprint
 
 from aws_helpers import get_ec2_ip_addresses
 
@@ -253,8 +254,13 @@ def monitor_directory_space(path='stormtracks_data/data/', poll_time=10):
             if prev_sse is not None:
                 elapsed_time = sse - prev_sse
                 delta_size = size - prev_size
-                print("{0:>15}: {1:2.1f}MB/s - {2:4.0f}MB Total".
-                      format(env.host, (delta_size / elapsed_time) / 2**10, size / 2**10))
+                rate = (delta_size / elapsed_time) / 2**10
+                if rate < 1:
+                    color = 'red'
+                else:
+                    color = 'white'
+                cprint("{0:>15}: {1:2.1f}MB/s - {2:4.0f}MB Total".
+                       format(env.host, rate, size / 2**10), color)
             sleep(poll_time)
     return sse, size
 

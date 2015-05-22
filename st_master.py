@@ -254,6 +254,22 @@ def execute_fabric_commands(args, host, years, monitor):
         execute(fabfile.retrieve_logs, host=host)
 
 
+
+@cmdify.command
+def monitor_worker(conn, args, retrieve_logs=True, terminate=True):
+    instance = aws_helpers.find_instance(conn, args.instance_id)
+    host = instance.ip_address
+    process_log = setup_logging(name='st_master'.format(host),
+                                filename='logs/st_master_{0}.log'.format(host),
+                                use_console=False)
+    st_worker_status_monitor(process_log, args, host)
+    if retrieve_logs:
+        execute(fabfile.retrieve_logs, host=host)
+    fabfile.notify()
+    if terminate:
+        instance.terminate()
+
+
 # @cmdify.command
 def st_worker_status_monitor(process_log, args, host):
     """

@@ -12,7 +12,7 @@ CMDS = (
     ('uname -a', None, False, None),
     ('cat /etc/lsb-release',None , False, None),
     ('dpkg -l|grep ^ii|awk \'{print $2 "\t" $3}\'', None, False, None),
-    ('pip freeze', None, False, '$HOME/Projects/stormtracks/st_env'),
+    # ('pip freeze', None, False, '$HOME/Projects/stormtracks/st_env'),
     ('git rev-parse HEAD', '$HOME/Projects/stormtracks', True, None),
     ('git rev-parse HEAD', '$HOME/Projects/stormtracks_aws', True, None),
     )

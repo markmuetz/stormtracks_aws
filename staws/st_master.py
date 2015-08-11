@@ -14,65 +14,58 @@ from argparse import ArgumentParser
 import multiprocessing as mp
 
 import argcomplete
+import argh
 from fabric.api import execute, env
 from fabric.network import disconnect_all
-import commandify as cmdify
 
-import fabfile
-import aws_helpers
-from aws_helpers import AwsInteractionError
-from st_utils import setup_logging
-import amis
+import staws.fabfile as fabfile
+import staws.aws_helpers as aws_helpers
+import staws.amis as amis
+from staws.aws_helpers import AwsInteractionError
+from staws.st_utils import setup_logging
+
+
+class Glob(object):
+    pass
+
+g = Glob()
 
 
 if __name__ == '__main__':
     log = setup_logging(name='st_master', filename='logs/st_master.log')
 
 
-@cmdify.main_command
-def main_command(args):
-    pass
-
-
-@cmdify.command
 def get_all_files(conn, args):
     aws_helpers.get_all_files()
 
 
-@cmdify.command
 def create_instances(conn, args):
     aws_helpers.create_instances(conn, args)
 
 
-@cmdify.command
 def create_image(conn, args):
     instance = aws_helpers.find_instance(conn, args.instance_id)
     image = aws_helpers.create_image(conn, instance.id, args.image_nametag, args)
 
 
-@cmdify.command
-def list_instances(conn, args):
-    aws_helpers.list_instances(conn, args)
+def list_instances():
+    aws_helpers.list_instances(g.conn, g.args)
 
 
-@cmdify.command
 def terminate_instances(conn, args):
     aws_helpers.terminate_instances(conn, args)
 
 
-@cmdify.command
 def find_instance(conn, args):
     aws_helpers.find_instance(conn, args.instance_id)
 
 
-@cmdify.command
 def run_fabric_commands(conn, args):
     instance = aws_helpers.find_instance(conn, args.instance_id)
     host = instance.ip_address
     execute_fabric_commands(args, host)
 
 
-@cmdify.command
 def setup_st_worker_image(conn, args):
     """
     Either creates an image from scratch, starting with a blank Ubuntu image
@@ -115,7 +108,6 @@ def setup_st_worker_image(conn, args):
     log.info("Success! Run 'python aws_interaction.py run_analysis'")
 
 
-@cmdify.command
 def match_instances_to_years(instances, years):
     min_years_per_instance = len(years) // len(instances)
     extra_years = len(years) - len(instances) * min_years_per_instance
@@ -136,9 +128,6 @@ def match_instances_to_years(instances, years):
     return instance_to_years_map
 
 
-@cmdify.command(start_year={'flag': '-s'}, 
-                end_year={'flag': '-e'},
-                create_new_instances={'flag': '-d'})
 def run_analysis(conn, args, create_new_instances=True, start_year=2005, end_year=2005,
                  terminate=True, monitor=True):
     """
@@ -255,7 +244,6 @@ def execute_fabric_commands(args, host, years, monitor):
 
 
 
-@cmdify.command
 def monitor_worker(conn, args, retrieve_logs=True, terminate=True):
     instance = aws_helpers.find_instance(conn, args.instance_id)
     host = instance.ip_address
@@ -270,7 +258,6 @@ def monitor_worker(conn, args, retrieve_logs=True, terminate=True):
         instance.terminate()
 
 
-# @cmdify.command
 def st_worker_status_monitor(process_log, args, host):
     """
     Monitor the status of an st_worker, looking for when they have finished their analysis.
@@ -299,7 +286,6 @@ def st_worker_status_monitor(process_log, args, host):
     process_log.info('Run full analysis')
 
 
-@cmdify.command
 def st_status(conn, args):
     """
     Gets analysis status of all instances
@@ -311,7 +297,6 @@ def st_status(conn, args):
         execute(analysis_status, wait=True, host=host)
 
 
-@cmdify.command
 def attach_mount(conn, args):
     """
     Experimental: Attaches a specific mount to an instance.
@@ -326,10 +311,11 @@ def main():
     env.user = "ubuntu"
     env.key_filename = ["aws_credentials/st_worker1.pem"]
 
-    conn = aws_helpers.create_ec2_connection('eu-central-1')
+    g.conn = aws_helpers.create_ec2_connection('eu-central-1')
 
-    parser = cmdify.CommandifyArgumentParser(provide_args={'conn': conn},
-                                             suppress_warnings=['default_true'])
+    parser = argh.ArghParser()
+    # parser = cmdify.CommandifyArgumentParser(provide_args={'conn': conn},
+                                             # suppress_warnings=['default_true'])
 
     parser.add_argument('--instance-id')
     parser.add_argument('--image-id', default=amis.ST_WORKER_IMAGE_CURRENT)
@@ -344,11 +330,16 @@ def main():
     parser.add_argument('-d', '--dry-run', default=False, action='store_true')
     parser.add_argument('--instance-type', default='t2.medium')
 
-    parser.setup_arguments()
+    parser.add_commands([list_instances])
+    g.args = parser.parse_args()
+
+    # parser.setup_arguments()
     argcomplete.autocomplete(parser)
-    args = parser.parse_args()
+    # args = parser.parse_args()
+    parser.dispatch()
     try:
-        parser.dispatch_commands()
+        # parser.dispatch_commands()
+        pass
     except AwsInteractionError, e:
         log.error(e)
         parser.error(e)

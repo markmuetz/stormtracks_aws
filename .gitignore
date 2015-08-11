@@ -8,3 +8,6 @@ docs/_build
 aws_credentials/
 st_aws_env/
 logs/
+stormtracks.egg-info/
+wheelhouse/
+MANIFEST

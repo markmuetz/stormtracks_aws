@@ -139,6 +139,7 @@ def list_instances(conn, args, running=True):
     """
     Lists all running instances.
     """
+    print(args)
     key = "tag:{0}".format(args.tag)
     instances = get_instances(conn, filters={key: args.tag_value}, running=running)
     log.debug('key: {0}, value: {1}'.format(key, args.tag_value))
